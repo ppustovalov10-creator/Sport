@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Центр — тренер, питание, вес</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16171a">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
+</style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+.wk-app {
+  --bg: #16171a;
+  --surface: #1e1f23;
+  --surface-2: #26272c;
+  --line: #34363c;
+  --text: #f5f3ee;
+  --text-dim: #8b8d93;
+  --good: #2fbf8f;
+  --bad: #e2543f;
+  --accent: #4f8ff7;
+  --gold: #d8a13b;
+  --orange: #e0842e;
+
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+}
+.wk-app * { box-sizing: border-box; }
+.wk-inner { max-width: 560px; margin: 0 auto; padding: 20px 18px 44px; }
+
+/* ---- Loading / error states ---- */
+.wk-loading, .wk-error {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height: 320px; gap: 14px; padding: 40px 20px; text-align:center;
+}
+.wk-spinner { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: wk-spin .8s linear infinite; }
+@keyframes wk-spin { to { transform: rotate(360deg); } }
+.wk-loading p, .wk-error p { color: var(--text-dim); font-size: 13px; }
+.wk-error-title { font-family:'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; color: var(--bad); }
+.wk-retry-btn { background: var(--accent); border:none; color:#0d1a2e; font-weight:700; padding: 10px 20px; border-radius: 10px; cursor:pointer; font-size: 13px; margin-top: 6px; }
+
+/* ---- Topbar ---- */
+.topbar { display:flex; align-items:center; justify-content:space-between; padding: 4px 2px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.brand { display:flex; align-items:center; gap: 10px; }
+.brand-mark { width: 10px; height: 10px; background: var(--accent); border-radius: 2px; display:inline-block; }
+.brand h1 { font-family:'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; margin:0; font-weight:400; }
+.date-today { font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
+
+/* ---- Stats strip ---- */
+.stats-strip { display:grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.stat-box { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px 10px; text-align:center; }
+.stat-num { font-family:'JetBrains Mono', monospace; font-size: 19px; font-weight:700; color: var(--text); }
+.stat-lbl { font-size: 10px; color: var(--text-dim); text-transform:uppercase; letter-spacing:.4px; margin-top: 2px; }
+
+/* ---- Day tabs ---- */
+.day-tabs { display:flex; gap:8px; margin-bottom: 18px; }
+.day-tab-wrap { flex:1; position:relative; display:flex; }
+.day-tab { flex:1; background: var(--surface); border:1px solid var(--line); color: var(--text-dim); padding: 11px 6px; border-radius: 10px; font-size: 12px; font-weight:600; text-align:center; cursor:pointer; transition: all .15s ease; }
+.day-tab:hover { border-color: var(--text-dim); }
+.day-tab.active { background: var(--accent); color:#0d1a2e; border-color: var(--accent); }
+.day-tab-edit { position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background: var(--surface-2); border:1px solid var(--line); color: var(--text-dim); font-size: 9px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; }
+.day-tab-edit:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Exercise cards ---- */
+.exercise-card { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; animation: wk-fadein .2s ease; }
+@keyframes wk-fadein { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+.exercise-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; gap: 8px; }
+.exercise-name { font-weight:700; font-size: 14px; flex:1; min-width:0; }
+.exercise-1rm { font-family:'JetBrains Mono', monospace; font-size: 10px; color: var(--gold); font-weight:700; white-space:nowrap; }
+.exercise-remove { background:none; border:none; color: var(--text-dim); cursor:pointer; font-size: 12px; opacity: .7; flex-shrink:0; }
+.exercise-remove:hover { color: var(--bad); opacity:1; }
+.plate-hint { font-size: 11px; color: var(--text-dim); font-family:'JetBrains Mono', monospace; margin-top: 6px; min-height: 14px; }
+
+.rest-timer { display:flex; align-items:center; gap: 8px; background: var(--surface); border:1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+.rest-icon { font-size: 14px; }
+.rest-time { font-family:'JetBrains Mono', monospace; font-size: 18px; font-weight:800; color: var(--accent); flex:1; }
+.rest-btn { background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight:600; cursor:pointer; }
+.rest-btn.skip { color: var(--text-dim); }
+
+.goal-box { display:flex; align-items:flex-start; gap: 8px; background: rgba(79,143,247,0.12); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 11px; margin-bottom: 12px; }
+.goal-icon { font-size: 14px; flex-shrink:0; line-height:1.3; }
+.goal-text { font-size: 12px; font-family:'JetBrains Mono', monospace; color: var(--text); line-height: 1.5; }
+.goal-label { color: var(--accent); font-weight:700; font-family:'Inter',sans-serif; text-transform:uppercase; letter-spacing:.3px; font-size: 10px; display:block; margin-bottom:2px; }
+.goal-done { color: var(--good); font-weight:700; }
+
+.history-strip { display:flex; flex-direction:column; gap: 4px; margin-bottom: 12px; padding: 10px; background: var(--surface-2); border-radius: 10px; }
+.history-strip summary { cursor: pointer; list-style: none; }
+.history-strip summary::-webkit-details-marker { display:none; }
+.history-strip summary::after { content: '▾ ещё'; float:right; font-size: 10px; color: var(--text-dim); margin-left: 8px; }
+.history-strip[open] summary::after { content: '▴ скрыть'; }
+.history-strip[open] summary { margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.history-row { display:flex; gap: 8px; font-size: 11px; font-family:'JetBrains Mono', monospace; }
+.history-label { color: var(--text-dim); flex-shrink:0; width: 100px; }
+.history-sets { color: var(--text); }
+.history-empty { color: var(--text-dim); font-size: 11px; font-style: italic; }
+
+.sets-today { display:flex; flex-wrap:wrap; gap: 6px; margin-bottom: 10px; min-height: 2px; }
+.set-chip { background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-family:'JetBrains Mono', monospace; font-size: 12px; font-weight:700; padding: 5px 8px; border-radius: 6px; display:flex; align-items:center; gap:6px; animation: wk-pop .2s ease; }
+.set-chip.up { background: var(--good); border-color: var(--good); color:#0d1a16; }
+.set-chip.down { background: var(--bad); border-color: var(--bad); color:#2a0d08; }
+.set-chip.same { background: var(--orange); border-color: var(--orange); color:#2a1a05; }
+.set-chip.pr { background: var(--gold); border-color: var(--gold); color:#2a1f05; }
+.set-chip button { color: inherit; }
+@keyframes wk-pop { from { transform: scale(.85); opacity:0; } to { transform: scale(1); opacity:1; } }
+.set-chip button { background:none; border:none; color:#0d1a16; cursor:pointer; font-weight:700; opacity:.65; padding:0; font-size:12px; }
+.set-chip button:hover { opacity:1; }
+
+.set-input-row { display:flex; gap: 6px; }
+.set-input-row input { flex:1; min-width:0; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 8px; padding: 9px 8px; font-family:'JetBrains Mono', monospace; font-size: 13px; }
+.set-input-row input:focus { outline:none; border-color: var(--accent); }
+.set-input-row button { background: var(--accent); border:none; color:#0d1a2e; font-weight:700; border-radius: 8px; padding: 0 14px; cursor:pointer; font-size: 13px; flex-shrink:0; }
+.set-input-row button:active { transform: scale(.96); }
+
+.add-exercise-row { display:flex; gap: 8px; margin-bottom: 22px; }
+.add-exercise-row input { flex:1; background: var(--surface); border:1px dashed var(--line); color: var(--text); border-radius: 10px; padding: 11px 12px; font-size: 13px; }
+.add-exercise-row input:focus { outline:none; border-color: var(--text-dim); }
+.add-exercise-row button { background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 0 16px; cursor:pointer; font-weight:600; font-size: 13px; }
+
+.save-msg { text-align:center; font-size: 12px; color: var(--good); margin: 10px 0 22px; min-height: 16px; font-weight:600; }
+.save-msg.error { color: var(--bad); }
+
+.section-title { font-family:'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; margin: 0 0 12px; }
+
+.past-list { display:flex; flex-direction:column; gap: 8px; }
+.past-item { background: var(--surface); border:1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.past-item-head { display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:6px; }
+.past-item-date { color: var(--accent); font-family:'JetBrains Mono', monospace; }
+.past-item-ex { font-size: 11px; color: var(--text-dim); font-family:'JetBrains Mono', monospace; line-height:1.7; }
+.past-empty { color: var(--text-dim); font-size: 12px; text-align:center; padding: 16px 0; }
+
+.hidden { display:none !important; }
+
+/* ---- Weekly weigh-in gate ---- */
+.weighin-box { background: var(--surface); border:1px solid var(--line); border-radius: 16px; padding: 28px 22px; text-align:center; margin-top: 10vh; }
+.weighin-icon { font-size: 30px; margin-bottom: 8px; }
+.weighin-title { font-family:'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1.5px; margin-bottom: 4px; }
+.weighin-sub { font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 14px; }
+.weighin-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 20px; }
+.weighin-input-row { display:flex; gap: 8px; }
+.weighin-input-row input { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px; font-family:'JetBrains Mono', monospace; font-size: 15px; text-align:center; }
+.weighin-input-row input:focus { outline:none; border-color: var(--accent); }
+.weighin-input-row button { background: var(--good); border:none; color:#0d1a16; font-weight:800; border-radius: 10px; padding: 0 16px; cursor:pointer; font-size: 12px; flex-shrink:0; max-width: 130px; }
+.weighin-msg { margin-top: 12px; font-size: 12px; color: var(--bad); min-height: 14px; }
+
+/* ---- Weight trend ---- */
+.weight-section { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 18px; }
+.weight-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
+.weight-current { font-family:'JetBrains Mono', monospace; font-size: 13px; font-weight:700; color: var(--accent); }
+.weight-empty { color: var(--text-dim); font-size: 11px; text-align:center; padding: 6px 0 2px; }
+
+/* ---- Module tabs (Питание / Тренировки) ---- */
+.module-tabs { display:flex; gap: 8px; margin-bottom: 18px; background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 4px; }
+.module-tab { flex:1; text-align:center; padding: 10px 6px; border-radius: 9px; font-size: 13px; font-weight:700; color: var(--text-dim); cursor:pointer; }
+.module-tab.active { background: var(--accent); color:#0d1a2e; }
+
+/* ---- Coach chat ---- */
+.coach-chat-wrap { display:flex; flex-direction:column; height: calc(100vh - 340px); min-height: 380px; }
+.coach-chat-log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap: 10px; padding: 4px 2px 12px; }
+.coach-msg { display:flex; }
+.coach-msg-user { justify-content:flex-end; }
+.coach-msg-bot { justify-content:flex-start; }
+.coach-msg-bubble { max-width: 82%; padding: 10px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5; white-space:pre-wrap; }
+.coach-msg-bot .coach-msg-bubble { background: var(--surface); border:1px solid var(--line); border-bottom-left-radius: 4px; }
+.coach-msg-user .coach-msg-bubble { background: var(--accent); color:#0d1a2e; border-bottom-right-radius: 4px; font-weight:500; }
+.coach-msg-bubble.error { background: rgba(226,84,63,0.12); border:1px solid var(--bad); color: var(--bad); }
+.coach-chat-input-row { display:flex; gap: 8px; align-items:flex-end; padding-top: 8px; border-top: 1px solid var(--line); }
+.coach-chat-input-row textarea { flex:1; background: var(--surface); border:1px solid var(--line); color: var(--text); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-family:'Inter',sans-serif; resize:none; max-height: 100px; box-sizing:border-box; }
+.coach-chat-input-row textarea:focus { outline:none; border-color: var(--accent); }
+.coach-chat-input-row button { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); border:none; color:#0d1a2e; font-size: 16px; cursor:pointer; flex-shrink:0; }
+.coach-chat-input-row button:disabled { opacity:.5; }
+.coach-chat-note { text-align:center; font-size: 10px; color: var(--text-dim); padding-top: 6px; }
+.coach-typing { display:flex; gap: 4px; padding: 4px 0; }
+.coach-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: coach-bounce 1.2s infinite ease-in-out; }
+.coach-typing span:nth-child(2) { animation-delay: .15s; }
+.coach-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes coach-bounce { 0%,60%,100% { transform: translateY(0); opacity:.5; } 30% { transform: translateY(-4px); opacity:1; } }
+
+/* ---- Food dashboard ---- */
+.kcal-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+.kcal-row { display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 10px; }
+.kcal-label { font-size: 13px; color: var(--text-dim); font-weight: 600; }
+.kcal-numbers { font-family:'JetBrains Mono', monospace; font-size: 21px; font-weight: 700; }
+.kcal-numbers .of { color: var(--text-dim); font-size: 14px; font-weight: 500; }
+.track { height: 8px; background: var(--surface-2); border-radius: 4px; overflow:hidden; }
+.track-fill { height:100%; background: var(--good); border-radius: 4px; transition: width .4s ease, background .3s ease; width:0%; }
+.track-fill.over { background: var(--bad); }
+.macro-grid { display:grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+.macro-card { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 11px 10px; }
+.macro-name { font-size: 10px; color: var(--text-dim); text-transform:uppercase; letter-spacing:.4px; font-weight:600; margin-bottom:5px; }
+.macro-num { font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:700; margin-bottom:7px; }
+.macro-num span { color: var(--text-dim); font-weight:500; font-size:11px; }
+.macro-track { height:5px; background: var(--surface-2); border-radius:3px; overflow:hidden; }
+.macro-fill { height:100%; border-radius:3px; transition: width .4s ease; }
+.macro-fill.protein { background:#4f8ff7; }
+.macro-fill.fat { background:#d8a13b; }
+.macro-fill.carbs { background:#a874e8; }
+
+.wellbeing-card { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin-bottom: 14px; }
+.wellbeing-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; }
+.wellbeing-title { font-size: 11px; color: var(--text-dim); font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+.wellbeing-saved { font-size: 10px; color: var(--good); }
+.wellbeing-row { display:flex; align-items:center; justify-content:space-between; padding: 5px 0; }
+.wellbeing-label { font-size: 12px; color: var(--text); width: 100px; flex-shrink:0; }
+.wellbeing-scale { display:flex; gap: 4px; flex:1; justify-content:flex-end; }
+.wellbeing-scale button { width: 28px; height: 28px; border-radius: 7px; background: var(--surface-2); border:1px solid var(--line); color: var(--text-dim); font-family:'JetBrains Mono', monospace; font-size: 12px; font-weight:700; cursor:pointer; }
+.wellbeing-scale button.active { background: var(--accent); border-color: var(--accent); color:#0d1a2e; }
+.sleep-input { width: 70px; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 10px; font-family:'JetBrains Mono', monospace; font-size: 13px; text-align:right; }
+.sleep-input:focus { outline:none; border-color: var(--accent); }
+.water-row { display:flex; align-items:center; justify-content:space-between; padding: 5px 0; }
+.water-total { font-family:'JetBrains Mono', monospace; font-size: 14px; font-weight:700; color: var(--accent); }
+.water-buttons { display:flex; gap: 6px; margin-top: 4px; }
+.water-btn { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text); font-family:'JetBrains Mono', monospace; font-size: 12px; font-weight:700; padding: 7px; border-radius: 8px; cursor:pointer; }
+.water-btn.minus { color: var(--text-dim); flex: 0.6; }
+
+.guideline-badge { display:none; align-items:center; gap: 8px; font-size: 11px; padding: 8px 12px; border-radius: 10px; margin-bottom: 14px; }
+.guideline-badge.show { display:flex; }
+.guideline-badge.met { background: rgba(47,191,143,0.1); border:1px solid var(--good); color: var(--good); }
+.guideline-badge.unmet { background: rgba(216,161,59,0.1); border:1px solid var(--gold); color: var(--gold); }
+
+.week-card { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.week-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 8px; }
+.week-streak { font-size: 12px; color: var(--gold); font-weight:700; }
+.week-num { font-family:'JetBrains Mono', monospace; font-size: 13px; font-weight:700; }
+.week-track { height: 7px; background: var(--surface-2); border-radius: 4px; overflow:hidden; margin-bottom: 6px; }
+.week-fill { height:100%; background: var(--accent); border-radius: 4px; transition: width .4s ease; }
+.week-note { font-size: 11px; color: var(--text-dim); }
+
+.adaptive-card { background: linear-gradient(135deg, rgba(79,143,247,0.08), rgba(168,116,232,0.06)); border:1px solid var(--accent); border-radius: 14px; margin-bottom: 16px; overflow:hidden; }
+.adaptive-summary { width:100%; display:flex; align-items:center; gap: 8px; background:none; border:none; padding: 12px 16px; cursor:pointer; text-align:left; }
+.adaptive-icon { font-size: 15px; flex-shrink:0; }
+.adaptive-summary-text { flex:1; font-size: 12px; font-weight:600; color: var(--accent); }
+.adaptive-chevron { color: var(--accent); font-size: 12px; transition: transform .2s ease; flex-shrink:0; }
+.adaptive-chevron.open { transform: rotate(180deg); }
+.adaptive-body { font-size: 12px; line-height: 1.6; color: var(--text); padding: 0 16px 14px; }
+.adaptive-body b { color: var(--accent); font-family:'JetBrains Mono', monospace; }
+.adaptive-apply { width: calc(100% - 32px); margin: 0 16px 14px; background: var(--accent); border:none; color:#0d1a2e; font-weight:700; font-size: 12px; padding: 10px; border-radius: 10px; cursor:pointer; }
+
+.pattern-banner { display:flex; gap:8px; align-items:flex-start; background: rgba(226,84,63,0.1); border:1px solid var(--bad); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; }
+.pattern-banner b { color: var(--bad); }
+
+.date-picker-row { display:flex; align-items:center; gap: 8px; margin-bottom: 14px; background: var(--surface); border:1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.date-picker-label { font-size: 12px; color: var(--text-dim); font-weight:600; flex-shrink:0; }
+.date-picker-row input[type="date"] { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 8px; font-size: 12px; font-family:'JetBrains Mono', monospace; }
+.date-picker-row button { background: var(--accent); border:none; color:#0d1a2e; font-weight:700; border-radius: 8px; padding: 6px 12px; cursor:pointer; font-size: 11px; flex-shrink:0; }
+.date-picker-row.past { border-color: var(--orange); }
+.date-picker-note { font-size: 11px; color: var(--orange); margin: -8px 0 14px; padding: 0 2px; }
+
+.quick-chips { display:flex; flex-wrap:wrap; gap: 8px; margin-bottom: 12px; }
+.quick-chip { background: var(--surface); border:1px solid var(--line); color: var(--text); font-size: 12px; font-weight:600; padding: 9px 12px; border-radius: 10px; cursor:pointer; }
+.quick-chip:active { transform: scale(.97); }
+
+.text-add-row { display:flex; flex-direction:column; gap: 8px; margin-bottom: 10px; }
+.text-add-row textarea { width:100%; background: var(--surface); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family:'Inter',sans-serif; resize: vertical; min-height: 64px; line-height: 1.5; box-sizing: border-box; }
+.text-add-row textarea:focus { outline:none; border-color: var(--accent); }
+.text-add-controls { display:flex; align-items:center; gap: 10px; }
+.cheat-pill { display:flex; align-items:center; gap: 6px; font-size: 11px; color: var(--text-dim); background: var(--surface); border:1px solid var(--line); border-radius: 20px; padding: 8px 12px; flex-shrink:0; white-space:nowrap; }
+.cheat-pill input { width: 14px; height: 14px; accent-color: var(--gold); }
+.text-add-controls button { flex:1; background: var(--accent); border:none; color:#0d1a2e; border-radius: 10px; padding: 12px; cursor:pointer; font-weight:700; font-size: 13px; }
+
+.photo-toggle-btn { width:100%; background:none; border:none; color: var(--text-dim); font-size: 11px; padding: 6px; cursor:pointer; text-align:center; margin-bottom: 4px; }
+.photo-toggle-btn:hover { color: var(--accent); }
+.manual-form { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.manual-form input { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 9px; padding: 10px 11px; font-size: 14px; box-sizing:border-box; margin-bottom: 8px; }
+.manual-form-row { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.manual-form-row input { margin-bottom: 0; text-align:center; font-family:'JetBrains Mono', monospace; font-size: 13px; padding: 9px 4px; }
+.manual-form-labels { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 4px; }
+.manual-form-labels span { text-align:center; font-size: 10px; color: var(--text-dim); }
+.manual-form button { width:100%; background: var(--good); border:none; color:#0d1a16; border-radius: 10px; padding: 11px; cursor:pointer; font-weight:700; font-size: 13px; }
+.manual-verdict-row { display:flex; gap: 6px; margin-bottom: 10px; }
+.manual-verdict-row button { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text-dim); border-radius: 8px; padding: 8px 4px; font-size: 11px; font-weight:600; cursor:pointer; }
+.manual-verdict-row button.active.good { background: var(--good); border-color: var(--good); color:#0d1a16; }
+.manual-verdict-row button.active.neutral { background: var(--orange); border-color: var(--orange); color:#2a1a05; }
+.manual-verdict-row button.active.bad { background: var(--bad); border-color: var(--bad); color:#fff; }
+.upload-zone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 6px; border: 2px dashed var(--line); border-radius: 14px; padding: 22px 16px; cursor:pointer; background: var(--surface); margin-bottom: 8px; text-align:center; }
+.upload-zone:hover { border-color: var(--text-dim); }
+.upload-icon { font-size: 22px; opacity:.6; }
+.upload-hint { font-size: 13px; color: var(--text-dim); font-weight:500; }
+
+.analysis-loading { display:flex; align-items:center; gap:10px; padding: 12px; color: var(--text-dim); font-size: 13px; }
+
+.verdict-box { margin-bottom: 14px; display:flex; gap: 12px; align-items:flex-start; background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px; animation: wk-fadein .2s ease; }
+.stamp { flex-shrink:0; font-family:'Bebas Neue', sans-serif; font-size: 12px; letter-spacing: 1.2px; padding: 7px 9px; border: 2px solid currentColor; border-radius: 6px; transform: rotate(-6deg); text-align:center; line-height:1.2; white-space:nowrap; }
+.stamp.good { color: var(--good); }
+.stamp.bad { color: var(--bad); }
+.stamp.neutral { color: var(--orange); }
+.verdict-food-name { font-weight:700; font-size:13px; margin-bottom:3px; }
+.verdict-macros { font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--text-dim); margin-bottom:5px; }
+.verdict-comment { font-size: 12px; line-height:1.4; }
+.verdict-comment.good { color: var(--good); }
+.verdict-comment.bad { color: var(--bad); }
+.verdict-comment.neutral { color: var(--orange); }
+
+.food-list { display:flex; flex-direction:column; gap: 8px; margin-bottom: 18px; }
+.food-row { display:flex; align-items:center; gap: 10px; background: var(--surface); border:1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.food-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.food-dot.good { background: var(--good); }
+.food-dot.bad { background: var(--bad); }
+.food-dot.neutral { background: var(--orange); }
+.food-info { flex:1; min-width:0; }
+.food-name { font-size: 13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.food-time { font-size: 10px; color: var(--text-dim); font-family:'JetBrains Mono', monospace; }
+.food-kcal { font-family:'JetBrains Mono', monospace; font-size: 13px; font-weight:700; flex-shrink:0; }
+.food-del { background:none; border:none; color: var(--text-dim); cursor:pointer; font-size:14px; padding: 2px 4px; flex-shrink:0; }
+.food-del:hover { color: var(--bad); }
+.food-empty { color: var(--text-dim); font-size: 12px; text-align:center; padding: 16px 0; }
+
+.food-list-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+.food-list-actions { display:flex; gap: 6px; }
+.icon-btn { background: var(--surface); border:1px solid var(--line); color: var(--accent); font-size: 13px; width: 32px; height: 32px; border-radius: 8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.export-msg { text-align:center; font-size: 11px; color: var(--good); min-height: 14px; margin-bottom: 6px; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display:flex; align-items:flex-end; justify-content:center; }
+.modal-panel { background: var(--bg); width: 100%; max-width: 560px; max-height: 85vh; border-radius: 18px 18px 0 0; display:flex; flex-direction:column; animation: wk-fadein .2s ease; }
+.modal-head { display:flex; align-items:center; justify-content:space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); flex-shrink:0; }
+.modal-title { font-family:'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.5px; }
+.modal-close { background: var(--surface-2); border:none; color: var(--text); width: 30px; height: 30px; border-radius: 50%; font-size: 14px; cursor:pointer; }
+.modal-body { overflow-y: auto; padding: 16px 18px 28px; display:flex; flex-direction:column; gap: 10px; }
+.modal-item { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.modal-item-top { display:flex; justify-content:space-between; align-items:flex-start; gap: 10px; margin-bottom: 6px; }
+.modal-item-name { font-weight:700; font-size: 14px; line-height:1.4; }
+.modal-item-kcal { font-family:'JetBrains Mono', monospace; font-weight:700; font-size: 14px; flex-shrink:0; white-space:nowrap; }
+.modal-item-macros { font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.modal-item-time { font-size: 10px; color: var(--text-dim); }
+.modal-item-comment { font-size: 12px; margin-top: 6px; line-height: 1.4; }
+.modal-item-comment.good { color: var(--good); }
+.modal-item-comment.bad { color: var(--bad); }
+.modal-item-comment.neutral { color: var(--orange); }
+/* ===== Auth screen ===== */
+.auth-screen { min-height: 100vh; display:flex; align-items:flex-start; justify-content:center; padding: 24px; padding-top: 10vh; padding-bottom: 40vh; background: var(--bg); overflow-y: auto; }
+.auth-box { width:100%; max-width: 380px; background: var(--surface); border:1px solid var(--line); border-radius: 18px; padding: 28px 24px; }
+.auth-brand { display:flex; align-items:center; gap: 10px; margin-bottom: 22px; }
+.auth-brand-mark { width: 10px; height: 10px; background: var(--accent); border-radius: 2px; }
+.auth-brand h1 { font-family:'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; margin:0; font-weight:400; }
+.auth-tabs { display:flex; gap: 8px; margin-bottom: 20px; background: var(--surface-2); border-radius: 10px; padding: 4px; }
+.auth-tab { flex:1; text-align:center; padding: 9px; border-radius: 8px; font-size: 13px; font-weight:700; color: var(--text-dim); cursor:pointer; }
+.auth-tab.active { background: var(--accent); color:#0d1a2e; }
+.auth-field { margin-bottom: 14px; }
+.auth-field label { display:block; font-size: 12px; color: #a8aab0; margin-bottom: 5px; text-transform:uppercase; letter-spacing:.4px; font-weight:600; }
+.auth-field input { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 9px; padding: 11px 12px; font-size: 14px; box-sizing:border-box; }
+.auth-field input:focus { outline:none; border-color: var(--accent); }
+.auth-submit { width:100%; background: var(--good); border:none; color:#0d1a16; font-weight:800; font-size: 14px; padding: 13px; border-radius: 10px; cursor:pointer; margin-top: 6px; }
+.auth-submit:disabled { opacity:.5; }
+.auth-msg { font-size: 12px; margin-top: 12px; text-align:center; min-height: 16px; }
+.auth-msg.error { color: var(--bad); }
+.auth-msg.ok { color: var(--good); }
+.auth-note { font-size: 11px; color: var(--text-dim); text-align:center; margin-top: 16px; line-height:1.5; }
+
+/* ===== Onboarding ===== */
+.onboard-screen { min-height: 100vh; padding: 24px 20px 60px; background: var(--bg); }
+.onboard-inner { max-width: 480px; margin: 0 auto; }
+.onboard-title { font-family:'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; }
+.onboard-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; line-height:1.5; }
+.onboard-section { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+.onboard-section h3 { font-size: 13px; font-weight:700; margin: 0 0 14px; color: var(--accent); text-transform:uppercase; letter-spacing:.4px; }
+.onboard-row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.onboard-row.single { grid-template-columns: 1fr; }
+.onboard-field label { display:block; font-size: 11px; color: var(--text-dim); margin-bottom: 5px; }
+.onboard-field input, .onboard-field select { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 9px; padding: 10px 11px; font-size: 14px; box-sizing:border-box; }
+.onboard-computed { background: rgba(79,143,247,0.08); border:1px solid var(--accent); border-radius: 10px; padding: 12px; font-size: 12px; line-height:1.7; margin-top: 8px; }
+.onboard-computed b { color: var(--accent); font-family:'JetBrains Mono', monospace; }
+.onboard-submit { width:100%; background: var(--good); border:none; color:#0d1a16; font-weight:800; font-size: 15px; padding: 15px; border-radius: 12px; cursor:pointer; margin-top: 6px; }
+.logout-btn { background:none; border:none; color: var(--text-dim); font-size: 11px; cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="authScreen" class="auth-screen hidden">
+  <div class="auth-box">
+    <div class="auth-brand"><span class="auth-brand-mark"></span><h1>ЦЕНТР</h1></div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="authTabLogin">Вход</div>
+      <div class="auth-tab" id="authTabSignup">Регистрация</div>
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="auth-field">
+      <label>Пароль</label>
+      <input type="password" id="authPassword" autocomplete="current-password" placeholder="Минимум 6 символов">
+    </div>
+    <button class="auth-submit" id="authSubmitBtn">Войти</button>
+    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-note">Данные видны только тебе — у каждого свой отдельный аккаунт и своя история.</div>
+  </div>
+</div>
+
+<!-- ===== ONBOARDING SCREEN ===== -->
+<div id="onboardScreen" class="onboard-screen hidden">
+  <div class="onboard-inner">
+    <div class="onboard-title">Настрой свою цель</div>
+    <div class="onboard-sub">Заполни один раз — дальше приложение будет считать всё под тебя. Можно поменять позже в любой момент.</div>
+
+    <div class="onboard-section">
+      <h3>О тебе</h3>
+      <div class="onboard-row">
+        <div class="onboard-field"><label>Пол</label>
+          <select id="onbSex"><option value="male">Мужской</option><option value="female">Женский</option></select>
+        </div>
+        <div class="onboard-field"><label>Возраст</label><input type="number" id="onbAge" placeholder="24"></div>
+      </div>
+      <div class="onboard-row">
+        <div class="onboard-field"><label>Рост, см</label><input type="number" id="onbHeight" placeholder="172"></div>
+        <div class="onboard-field"><label>Текущий вес, кг</label><input type="number" step="0.1" id="onbWeight" placeholder="84"></div>
+      </div>
+      <div class="onboard-row single">
+        <div class="onboard-field"><label>Целевой вес, кг</label><input type="number" step="0.1" id="onbGoalWeight" placeholder="77"></div>
+      </div>
+      <div class="onboard-row single">
+        <div class="onboard-field"><label>Активность</label>
+          <select id="onbActivity">
+            <option value="1.2">Сидячая работа, почти без спорта</option>
+            <option value="1.375" selected>Сидячая работа + тренировки 3-4 р/нед</option>
+            <option value="1.55">Активная работа или спорт почти каждый день</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-computed" id="onbComputed"></div>
+
+    <button class="onboard-submit" id="onbSubmitBtn">Начать</button>
+  </div>
+</div>
+
+<div class="wk-app hidden">
+  <div id="wkLoading" class="wk-loading">
+    <div class="wk-spinner"></div>
+    <p>Загружаю историю тренировок...</p>
+  </div>
+  <div id="wkError" class="wk-error hidden">
+    <div class="wk-error-title">Не удалось загрузить</div>
+    <p id="wkErrorDetail">Хранилище недоступно. Попробуй ещё раз.</p>
+    <button class="wk-retry-btn" id="wkRetryBtn">Повторить</button>
+  </div>
+
+  <div id="wkWeighIn" class="wk-inner hidden">
+    <div class="weighin-box">
+      <div class="weighin-icon">⚖️</div>
+      <div class="weighin-title">Взвешивание за неделю</div>
+      <div class="weighin-sub" id="weighinWeekLabel"></div>
+      <p class="weighin-text">Впиши текущий вес, чтобы продолжить пользоваться дневником на этой неделе. Без этого прогресс не отследить честно.</p>
+      <div class="weighin-input-row">
+        <input type="number" step="0.1" inputmode="decimal" id="weighinInput" placeholder="Вес, кг">
+        <button id="weighinSubmit">Сохранить и продолжить</button>
+      </div>
+      <div class="weighin-msg" id="weighinMsg"></div>
+    </div>
+  </div>
+
+  <div id="wkMain" class="wk-inner hidden">
+    <div class="topbar">
+      <div class="brand"><span class="brand-mark"></span><h1>ЦЕНТР</h1></div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="date-today" id="todayLabel"></div>
+        <button class="logout-btn" id="logoutBtn">выйти</button>
+      </div>
+    </div>
+
+    <div class="weight-section">
+      <div class="weight-head">
+        <span class="section-title" style="margin:0;">Вес по неделям</span>
+        <span class="weight-current" id="weightCurrentLabel"></span>
+      </div>
+      <svg id="weightChart" viewBox="0 0 400 130" width="100%" height="115"></svg>
+      <div class="weight-empty hidden" id="weightEmptyMsg">Пока только одна отметка — тренд появится со второй недели</div>
+    </div>
+
+    <div class="module-tabs" id="moduleTabs">
+      <div class="module-tab active" data-module="food">Питание</div>
+      <div class="module-tab" data-module="workout">Тренировки</div>
+      <div class="module-tab" data-module="coach">Тренер</div>
+    </div>
+
+    <!-- ================= COACH CHAT MODULE ================= -->
+    <div id="moduleCoach" class="hidden">
+      <div class="coach-chat-wrap">
+        <div class="coach-chat-log" id="coachChatLog"></div>
+        <div class="coach-chat-input-row">
+          <textarea id="coachChatInput" placeholder="Спроси тренера..."></textarea>
+          <button id="coachChatSend">➤</button>
+        </div>
+        <div class="coach-chat-note">Нужен тот же API-ключ 🔑, что для анализа еды.</div>
+      </div>
+    </div>
+
+    <!-- ================= FOOD MODULE ================= -->
+    <div id="moduleFood">
+      <div class="date-picker-row" id="foodDatePickerRow">
+        <span class="date-picker-label">Запись за:</span>
+        <input type="date" id="foodDateInput">
+        <button id="foodDateTodayBtn">Сегодня</button>
+      </div>
+      <div class="date-picker-note hidden" id="foodDateNote"></div>
+      <div id="patternBanner"></div>
+
+      <div class="kcal-card">
+        <div class="kcal-row">
+          <span class="kcal-label" id="kcalCardLabel">Калории сегодня</span>
+          <span class="kcal-numbers"><span id="kcalConsumed">0</span><span class="of"> / <span id="kcalTarget">1950</span> ккал</span></span>
+        </div>
+        <div class="track"><div class="track-fill" id="kcalBar"></div></div>
+      </div>
+      <div class="macro-grid">
+        <div class="macro-card">
+          <div class="macro-name">Белки</div>
+          <div class="macro-num"><span id="proteinVal">0</span><span> / <span id="proteinTarget">165</span> г</span></div>
+          <div class="macro-track"><div class="macro-fill protein" id="proteinBar"></div></div>
+        </div>
+        <div class="macro-card">
+          <div class="macro-name">Жиры</div>
+          <div class="macro-num"><span id="fatVal">0</span><span> / <span id="fatTarget">60</span> г</span></div>
+          <div class="macro-track"><div class="macro-fill fat" id="fatBar"></div></div>
+        </div>
+        <div class="macro-card">
+          <div class="macro-name">Углеводы</div>
+          <div class="macro-num"><span id="carbsVal">0</span><span> / <span id="carbsTarget">185</span> г</span></div>
+          <div class="macro-track"><div class="macro-fill carbs" id="carbsBar"></div></div>
+        </div>
+      </div>
+
+      <div class="wellbeing-card">
+        <div class="wellbeing-head">
+          <span class="wellbeing-title">Самочувствие сегодня</span>
+          <span class="wellbeing-saved" id="wellbeingSaved"></span>
+        </div>
+        <div class="wellbeing-row">
+          <span class="wellbeing-label">😴 Сон, ч</span>
+          <input type="number" step="0.5" min="0" max="14" inputmode="decimal" class="sleep-input" id="sleepHoursInput" placeholder="7.5">
+        </div>
+        <div class="wellbeing-row">
+          <span class="wellbeing-label">🙂 Настроение</span>
+          <div class="wellbeing-scale" data-metric="mood">
+            <button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button><button data-val="4">4</button><button data-val="5">5</button>
+          </div>
+        </div>
+        <div class="water-row">
+          <span class="wellbeing-label">💧 Вода</span>
+          <span class="water-total" id="waterTotal">0 мл</span>
+        </div>
+        <div class="water-buttons">
+          <button class="water-btn minus" data-add="-250">−250</button>
+          <button class="water-btn" data-add="250">+250</button>
+          <button class="water-btn" data-add="500">+500</button>
+        </div>
+      </div>
+
+      <div class="week-card">
+        <div class="week-row">
+          <span class="week-streak" id="streakInline"></span>
+          <span class="week-num" id="weekNum">0 / 0 ккал</span>
+        </div>
+        <div class="week-track"><div class="week-fill" id="weekBar"></div></div>
+        <div class="week-note" id="weekNote"></div>
+      </div>
+
+      <div class="adaptive-card hidden" id="adaptiveCard">
+        <button class="adaptive-summary" id="adaptiveSummaryBtn">
+          <span class="adaptive-icon">🧮</span>
+          <span class="adaptive-summary-text" id="adaptiveSummaryText">Адаптивная цель</span>
+          <span class="adaptive-chevron" id="adaptiveChevron">▾</span>
+        </button>
+        <div class="adaptive-body hidden" id="adaptiveBody"></div>
+        <button class="adaptive-apply hidden" id="adaptiveApplyBtn"></button>
+      </div>
+
+      <div class="section-title">Добавить приём пищи</div>
+      <div class="quick-chips" id="quickChips"></div>
+
+      <div class="manual-form">
+        <input type="text" id="manualName" placeholder="Название блюда">
+        <div class="manual-form-labels"><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углев.</span></div>
+        <div class="manual-form-row">
+          <input type="number" id="manualKcal" inputmode="decimal">
+          <input type="number" id="manualProtein" inputmode="decimal">
+          <input type="number" id="manualFat" inputmode="decimal">
+          <input type="number" id="manualCarbs" inputmode="decimal">
+        </div>
+        <div class="manual-verdict-row">
+          <button data-v="Хорошо" class="active good">Хорошо</button>
+          <button data-v="Средне">Средне</button>
+          <button data-v="Плохо">Плохо</button>
+        </div>
+        <button id="manualAddBtn">+ Добавить</button>
+      </div>
+      <div class="photo-toggle-btn" style="cursor:default; opacity:.6; margin-bottom:14px;">— или используй умный разбор ниже (нужен свой API-ключ) —</div>
+
+      <div class="text-add-row">
+        <textarea id="textFoodInput" placeholder="Опиши, что съел. Можно сразу несколько блюд — каждое с новой строки, разберу и добавлю всё по отдельности."></textarea>
+        <div class="text-add-controls">
+          <label class="cheat-pill"><input type="checkbox" id="cheatToggle"> Чит-мил</label>
+          <button id="textFoodBtn">Оценить и добавить</button>
+        </div>
+      </div>
+
+      <button class="photo-toggle-btn" id="photoToggleBtn">📷 Или добавь по фото</button>
+      <label class="upload-zone hidden" id="uploadZone">
+        <input type="file" accept="image/*" id="photoInput" hidden>
+        <span class="upload-icon">📷</span>
+        <span class="upload-hint">Нажми и выбери фото блюда</span>
+      </label>
+
+      <div id="loadingBox" class="analysis-loading hidden">
+        <span class="wk-spinner" style="width:14px;height:14px;"></span> Разбираю блюдо...
+      </div>
+      <div id="verdictBox"></div>
+
+      <div class="food-list-head">
+        <span class="section-title" style="margin:0;">Сегодня съедено</span>
+        <div class="food-list-actions">
+          <button class="icon-btn" id="exportDayBtn" title="Скопировать сводку дня для тренера">📋</button>
+          <button class="icon-btn" id="expandFoodBtn" title="Развернуть">⤢</button>
+        </div>
+      </div>
+      <div class="export-msg" id="exportMsg"></div>
+      <div class="food-list" id="foodList"></div>
+      <div id="foodEmpty" class="food-empty hidden">Пока ничего не добавлено</div>
+    </div>
+
+    <div class="modal-overlay hidden" id="foodModalOverlay">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <span class="modal-title" id="foodModalTitle">Съедено</span>
+          <button class="modal-close" id="foodModalClose">✕</button>
+        </div>
+        <div class="modal-body" id="foodModalList"></div>
+      </div>
+    </div>
+
+    <!-- ================= WORKOUT MODULE ================= -->
+    <div id="moduleWorkout" class="hidden">
+      <div class="rest-timer hidden" id="restTimer">
+        <span class="rest-icon">⏱</span>
+        <span class="rest-time" id="restTimeLabel">01:30</span>
+        <button class="rest-btn" id="restMinus15">-15</button>
+        <button class="rest-btn" id="restPlus15">+15</button>
+        <button class="rest-btn skip" id="restSkip">пропустить</button>
+      </div>
+
+      <div class="stats-strip">
+        <div class="stat-box"><div class="stat-num" id="statSessions">0</div><div class="stat-lbl">Тренировок</div></div>
+        <div class="stat-box"><div class="stat-num" id="statVolume">0</div><div class="stat-lbl">Тоннаж сегодня</div></div>
+        <div class="stat-box"><div class="stat-num" id="statPRs">0</div><div class="stat-lbl">Рекордов сегодня</div></div>
+      </div>
+
+      <div class="guideline-badge" id="guidelineBadge"></div>
+
+      <div class="day-tabs" id="dayTabs"></div>
+      <button class="export-btn" id="exportWorkoutBtn">📋 Скопировать тренировку для тренера</button>
+      <div class="export-msg" id="exportWorkoutMsg"></div>
+      <div id="exerciseList"></div>
+
+      <div class="add-exercise-row">
+        <input type="text" id="newExerciseInput" placeholder="Добавить упражнение...">
+        <button id="addExerciseBtn">+</button>
+      </div>
+
+      <div class="save-msg" id="saveMsg"></div>
+
+      <div class="section-title">История тренировок</div>
+      <div class="past-list" id="pastList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/storage-supabase.js"></script>
+<script src="js/api-config.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  const DAY_TYPES = ['Грудь+Трицепс', 'Ноги', 'Спина+Бицепс'];
+  // Fixed weekly schedule: JS getDay() → 0=Вс,1=Пн,2=Вт,3=Ср,4=Чт,5=Пт,6=Сб
+  const SCHEDULE = { 2: 'Грудь+Трицепс', 4: 'Ноги', 0: 'Спина+Бицепс' };
+  function getScheduledDayType() {
+    return SCHEDULE[new Date().getDay()] || null;
+  }
+
+  // ===== FOOD MODULE CONSTANTS =====
+  // No hardcoded target here — new users set this during onboarding.
+  const FOOD_TARGET_DEFAULT = { calories: 2000, protein: 150, fat: 65, carbs: 200 };
+  let FOOD_TARGET = { ...FOOD_TARGET_DEFAULT };
+  const QUICK_FOODS = [
+    { name: 'Варёные яйца 2шт', calories: 140, protein: 12, fat: 10, carbs: 1, verdict: 'Средне' },
+    { name: 'Куриная грудка 150г', calories: 248, protein: 46.5, fat: 5.4, carbs: 0, verdict: 'Хорошо' },
+    { name: 'Рис 90г сухой', calories: 324, protein: 6.3, fat: 0.5, carbs: 70, verdict: 'Хорошо' },
+    { name: 'Банан', calories: 105, protein: 1, fat: 0, carbs: 27, verdict: 'Средне' },
+    { name: 'Творог 150г', calories: 182, protein: 24, fat: 7.5, carbs: 4.5, verdict: 'Хорошо' },
+    { name: 'Американо', calories: 5, protein: 0, fat: 0, carbs: 1, verdict: 'Хорошо' }
+  ];
+  // No pre-loaded food history — every account starts empty and builds its own.
+  const FOOD_SEED = {};
+
+  const DEFAULT_EXERCISES = {
+    'Грудь+Трицепс': ['Жим лёжа', 'Брусья', 'Трицепс (блок)', 'Баттерфляй'],
+    'Ноги': ['Свободный присед', 'Икры', 'Жим ногами', 'Разгибание ног'],
+    'Спина+Бицепс': ['Тяга к груди', 'Тяга вниз', 'Бицепс', 'Гиперэкстензия']
+  };
+
+  // No pre-loaded workout history — every account starts empty and builds its own.
+  const SEED = [];
+
+  const $ = (id) => document.getElementById(id);
+  let currentDay = getScheduledDayType() || DAY_TYPES[0];
+  let todayExercises = {};
+  let exerciseListForDay = [];
+  let allWorkouts = {};
+  let todayPRs = 0;
+  let storageOk = true;
+
+  const todayStr = () => {
+    const d = new Date();
+    return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+  };
+  const fmtDateLabel = () => new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }).toUpperCase();
+
+  function fmtSet(s) {
+    const hasW = s.w !== null && s.w !== undefined && s.w !== '';
+    const hasR = s.r !== null && s.r !== undefined && s.r !== '';
+    if (hasW && hasR) return `${s.w}кг×${s.r}`;
+    if (hasW) return `${s.w}кг`;
+    if (hasR) return `×${s.r}`;
+    return '—';
+  }
+  function fmtSets(sets) { return sets.map(fmtSet).join(' · '); }
+  function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+  function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+  async function safeStorageGet(key, retries) {
+    retries = retries === undefined ? 2 : retries;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const r = await window.storage.get(key, false);
+        return (r && r.value) ? r.value : null;
+      } catch (e) {
+        if (attempt < retries) await delay(250 * (attempt + 1));
+      }
+    }
+    return null;
+  }
+  async function safeStorageSet(key, value, retries) {
+    retries = retries === undefined ? 2 : retries;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const r = await window.storage.set(key, value, false);
+        if (r) return true;
+      } catch (e) { /* fall through to retry */ }
+      if (attempt < retries) await delay(250 * (attempt + 1));
+    }
+    return false;
+  }
+
+  // Run async tasks with limited concurrency to avoid bursting the storage API on init.
+  async function runLimited(items, worker, limit) {
+    limit = limit || 3;
+    const results = new Array(items.length);
+    let idx = 0;
+    async function next() {
+      while (idx < items.length) {
+        const i = idx++;
+        results[i] = await worker(items[i], i);
+      }
+    }
+    await Promise.all(new Array(Math.min(limit, items.length)).fill(0).map(next));
+    return results;
+  }
+
+  async function seedIfNeeded() {
+    const checks = await runLimited(SEED, w => safeStorageGet('workout:' + w.date), 3);
+    const toSeed = SEED.filter((w, i) => checks[i] === null);
+    await runLimited(toSeed, w => safeStorageSet('workout:' + w.date, JSON.stringify(w)), 3);
+  }
+
+  async function loadAllWorkouts() {
+    allWorkouts = {};
+    let keys = [];
+    try {
+      const listRes = await window.storage.list('workout:', false);
+      keys = (listRes && listRes.keys) || [];
+    } catch (e) { keys = []; }
+    const results = await runLimited(keys, k => safeStorageGet(k), 3);
+    results.forEach(val => {
+      if (!val) return;
+      try {
+        const w = JSON.parse(val);
+        if (w && w.date) allWorkouts[w.date] = w;
+      } catch (e) { /* skip malformed */ }
+    });
+  }
+
+  function parseDate(d) {
+    const parts = d.split('.');
+    return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  }
+
+  function getHistoryFor(dayType, exerciseName, excludeDate) {
+    return Object.values(allWorkouts)
+      .filter(w => w.dayType === dayType && w.date !== excludeDate)
+      .filter(w => w.exercises.some(e => e.name === exerciseName))
+      .sort((a,b) => parseDate(b.date) - parseDate(a.date))
+      .slice(0, 3)
+      .map(w => ({ date: w.date, sets: w.exercises.find(e => e.name === exerciseName).sets }));
+  }
+
+  function getTarget(dayType, exerciseName, excludeDate) {
+    const hist = getHistoryFor(dayType, exerciseName, excludeDate);
+    if (hist.length) {
+      const last = hist[0];
+      const targetSets = last.sets.map(s => {
+        if (s.r === null || s.r === undefined || s.r === '') return { w: s.w, r: null };
+        return { w: s.w, r: Number(s.r) + 1 };
+      });
+      return { sourceDate: last.date, sets: targetSets, projected: false };
+    }
+    // No prior history at all — if today already has sets logged for this exercise,
+    // project next time's target from today's own numbers instead of leaving it blank.
+    const todaySets = todayExercises[exerciseName];
+    if (todaySets && todaySets.length) {
+      const targetSets = todaySets.map(s => {
+        if (s.r === null || s.r === undefined || s.r === '') return { w: s.w, r: null };
+        return { w: s.w, r: Number(s.r) + 1 };
+      });
+      return { sourceDate: todayStr(), sets: targetSets, projected: true };
+    }
+    return null;
+  }
+
+  function isTargetAchieved(target, todaySets) {
+    if (!target) return false;
+    return target.sets.every(t => {
+      if (t.r === null) return true;
+      return todaySets.some(s => Number(s.w) === Number(t.w) && s.r !== null && Number(s.r) >= t.r);
+    });
+  }
+
+  function getPrevRepsAtWeight(dayType, exerciseName, weight, excludeDate) {
+    if (weight === null || weight === undefined || weight === '' || isNaN(Number(weight))) return null;
+    const wv = Number(weight);
+    const sorted = Object.values(allWorkouts)
+      .filter(w => w.dayType === dayType && w.date !== excludeDate)
+      .sort((a,b) => parseDate(b.date) - parseDate(a.date));
+    for (const w of sorted) {
+      const ex = w.exercises.find(e => e.name === exerciseName);
+      if (!ex) continue;
+      const match = ex.sets.find(s => Number(s.w) === wv && s.r !== null && s.r !== undefined && s.r !== '');
+      if (match) return { reps: Number(match.r), date: w.date };
+    }
+    return null;
+  }
+
+  function maxWeightFor(dayType, exerciseName, excludeDate) {
+    let max = 0;
+    Object.values(allWorkouts).forEach(w => {
+      if (w.dayType !== dayType || w.date === excludeDate) return;
+      const ex = w.exercises.find(e => e.name === exerciseName);
+      if (!ex) return;
+      ex.sets.forEach(s => { const wv = Number(s.w); if (!isNaN(wv) && wv > max) max = wv; });
+    });
+    return max;
+  }
+
+  // Historical best estimated 1RM (Epley), excluding a given date (normally today) —
+  // used as the PR baseline so a rep improvement at an already-matched weight
+  // still counts as a record, not just a heavier weight.
+  function historicalBest1RM(dayType, exerciseName, excludeDate) {
+    let best = 0;
+    Object.values(allWorkouts).forEach(w => {
+      if (w.dayType !== dayType || w.date === excludeDate) return;
+      const ex = w.exercises.find(e => e.name === exerciseName);
+      if (!ex) return;
+      ex.sets.forEach(s => {
+        const wv = Number(s.w), rv = Number(s.r);
+        if (!wv || !rv || wv <= 0 || rv <= 0) return;
+        const e1rm = wv * (1 + rv / 30);
+        if (e1rm > best) best = e1rm;
+      });
+    });
+    return best;
+  }
+
+  // Epley formula: 1RM = weight * (1 + reps/30). Scans all known history plus today's in-progress sets.
+  function estimated1RM(dayType, exerciseName) {
+    let best = 0;
+    Object.values(allWorkouts).forEach(w => {
+      if (w.dayType !== dayType) return;
+      const ex = w.exercises.find(e => e.name === exerciseName);
+      if (!ex) return;
+      ex.sets.forEach(s => {
+        const wv = Number(s.w), rv = Number(s.r);
+        if (!wv || !rv || wv <= 0 || rv <= 0) return;
+        const e1rm = wv * (1 + rv / 30);
+        if (e1rm > best) best = e1rm;
+      });
+    });
+    (todayExercises[exerciseName] || []).forEach(s => {
+      const wv = Number(s.w), rv = Number(s.r);
+      if (!wv || !rv || wv <= 0 || rv <= 0) return;
+      const e1rm = wv * (1 + rv / 30);
+      if (e1rm > best) best = e1rm;
+    });
+    return best > 0 ? Math.round(best) : null;
+  }
+
+  // Standard 20kg barbell + common plate sizes, greedy per-side breakdown.
+  const PLATES_KG = [25, 20, 15, 10, 5, 2.5, 1.25];
+  function plateBreakdown(totalWeight) {
+    const BAR = 20;
+    if (!totalWeight || totalWeight <= BAR) return null;
+    let perSide = (totalWeight - BAR) / 2;
+    const used = [];
+    for (const p of PLATES_KG) {
+      while (perSide >= p - 0.001) { used.push(p); perSide -= p; }
+    }
+    if (perSide > 0.01) return { exact: false, plates: used };
+    return { exact: true, plates: used };
+  }
+  function fmtPlates(totalWeight) {
+    const bd = plateBreakdown(totalWeight);
+    if (!bd) return null;
+    if (!bd.plates.length) return null;
+    const text = bd.plates.map(p => (p % 1 === 0 ? p : p.toFixed(2))).join(' + ');
+    return `гриф 20кг + ${text} на сторону${bd.exact ? '' : ' (не точно, ближайшее)'}`;
+  }
+
+  // ===== Rest timer =====
+  let restSeconds = 90;
+  let restRemaining = 0;
+  let restInterval = null;
+  function fmtRestTime(s) {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+  function updateRestLabel() { $('restTimeLabel').textContent = fmtRestTime(Math.max(0, restRemaining)); }
+  function stopRestTimer() {
+    clearInterval(restInterval);
+    restInterval = null;
+    $('restTimer').classList.add('hidden');
+  }
+  function startRestTimer() {
+    restRemaining = restSeconds;
+    updateRestLabel();
+    $('restTimer').classList.remove('hidden');
+    clearInterval(restInterval);
+    restInterval = setInterval(() => {
+      restRemaining--;
+      updateRestLabel();
+      if (restRemaining <= 0) {
+        clearInterval(restInterval);
+        $('restTimer').classList.add('hidden');
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+    }, 1000);
+  }
+  $('restMinus15').addEventListener('click', () => { restRemaining = Math.max(0, restRemaining - 15); updateRestLabel(); });
+  $('restPlus15').addEventListener('click', () => { restRemaining += 15; restSeconds = restRemaining; updateRestLabel(); });
+  $('restSkip').addEventListener('click', stopRestTimer);
+
+  // ===== Copy today's workout for pasting into chat =====
+  function buildWorkoutSummaryText() {
+    const dow = parseDate(todayStr()).toLocaleDateString('ru-RU', { weekday: 'long' });
+    const entries = Object.entries(todayExercises).filter(([, sets]) => sets && sets.length);
+    if (!entries.length) return null;
+    let lines = [`${currentDay} ${todayStr()} (${dow})`];
+    entries.forEach(([name, sets]) => {
+      lines.push(`${name}: ${fmtSets(sets)}`);
+    });
+    return lines.join('\n');
+  }
+  $('exportWorkoutBtn').addEventListener('click', async () => {
+    const msg = $('exportWorkoutMsg');
+    const text = buildWorkoutSummaryText();
+    if (!text) {
+      msg.textContent = 'Пока нет ни одного подхода сегодня — нечего копировать';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      msg.textContent = 'Скопировано ✓ — вставь в чат с тренером';
+    } catch (e) {
+      msg.textContent = 'Не удалось скопировать автоматически — выдели текст ниже вручную';
+      $('exerciseList').insertAdjacentHTML('beforebegin', `<div class="exercise-card"><pre style="white-space:pre-wrap;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text);margin:0;">${escapeHtml(text)}</pre></div>`);
+    }
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  });
+
+  async function loadCustomExercises(dayType) {
+    const val = await safeStorageGet('customExercises:' + dayType);
+    if (!val) return [];
+    try { return JSON.parse(val); } catch (e) { return []; }
+  }
+  async function saveCustomExercises(dayType, list) {
+    await safeStorageSet('customExercises:' + dayType, JSON.stringify(list));
+  }
+
+  // ===== Custom day-type display names (internal keys stay fixed so history/exercises never break) =====
+  let dayTypeLabels = {};
+  async function loadDayTypeLabels() {
+    const val = await safeStorageGet('dayTypeLabels');
+    dayTypeLabels = val ? JSON.parse(val) : {};
+  }
+  async function saveDayTypeLabels() {
+    await safeStorageSet('dayTypeLabels', JSON.stringify(dayTypeLabels));
+  }
+  function getDayLabel(dt) { return dayTypeLabels[dt] || dt; }
+
+  function renderDayTabs() {
+    const wrap = $('dayTabs');
+    wrap.innerHTML = '';
+    DAY_TYPES.forEach(dt => {
+      const tabWrap = document.createElement('div');
+      tabWrap.className = 'day-tab-wrap';
+      const btn = document.createElement('div');
+      btn.className = 'day-tab' + (dt === currentDay ? ' active' : '');
+      btn.textContent = getDayLabel(dt);
+      btn.addEventListener('click', async () => {
+        if (dt === currentDay) return;
+        currentDay = dt;
+        todayExercises = {};
+        todayPRs = 0;
+        await setupDay();
+      });
+      const editBtn = document.createElement('button');
+      editBtn.className = 'day-tab-edit';
+      editBtn.textContent = '✎';
+      editBtn.title = 'Переименовать';
+      editBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const current = getDayLabel(dt);
+        const next = prompt('Название для этого дня тренировки:', current);
+        if (next && next.trim()) {
+          dayTypeLabels[dt] = next.trim();
+          await saveDayTypeLabels();
+          renderDayTabs();
+          if (dt === currentDay) {
+            $('todayLabel').textContent = fmtDateLabel() + (getScheduledDayType() ? ' · ПО ПЛАНУ: ' + getDayLabel(getScheduledDayType()).toUpperCase() : '');
+          }
+        }
+      });
+      tabWrap.appendChild(btn);
+      tabWrap.appendChild(editBtn);
+      wrap.appendChild(tabWrap);
+    });
+  }
+
+  async function setupDay() {
+    renderDayTabs();
+    const custom = await loadCustomExercises(currentDay);
+    const seen = new Set();
+    exerciseListForDay = [...DEFAULT_EXERCISES[currentDay], ...custom].filter(n => {
+      if (seen.has(n)) return false;
+      seen.add(n); return true;
+    });
+    todayExercises = {};
+    exerciseListForDay.forEach(name => { todayExercises[name] = []; });
+
+    // If today's workout for this day type was already autosaved (e.g. reopened app mid-session), restore it.
+    const existing = allWorkouts[todayStr()];
+    if (existing && existing.dayType === currentDay) {
+      todayPRs = 0;
+      existing.exercises.forEach(ex => {
+        if (!exerciseListForDay.includes(ex.name)) exerciseListForDay.push(ex.name);
+        todayExercises[ex.name] = ex.sets.slice();
+      });
+    }
+
+    renderExercises();
+    updateStats();
+  }
+
+  function computeVolume() {
+    let vol = 0;
+    Object.values(todayExercises).forEach(sets => sets.forEach(s => {
+      const w = Number(s.w) || 0, r = Number(s.r) || 0;
+      vol += w * r;
+    }));
+    return Math.round(vol);
+  }
+
+  function updateStats() {
+    $('statSessions').textContent = Object.keys(allWorkouts).length;
+    $('statVolume').textContent = computeVolume().toLocaleString('ru-RU') + ' кг';
+    $('statPRs').textContent = todayPRs;
+  }
+
+  function renderExercises() {
+    const wrap = $('exerciseList');
+    wrap.innerHTML = '';
+    exerciseListForDay.forEach(name => {
+      const card = document.createElement('div');
+      card.className = 'exercise-card';
+
+      const target = getTarget(currentDay, name, todayStr());
+      const todaySetsForCheck = todayExercises[name] || [];
+      let goalHtml = '';
+      if (target) {
+        const labelText = target.projected ? 'Цель на следующую тренировку' : 'Цель на сегодня';
+        const achieved = !target.projected && isTargetAchieved(target, todaySetsForCheck);
+        goalHtml = `
+          <div class="goal-box">
+            <span class="goal-icon">🎯</span>
+            <span class="goal-text">
+              <span class="goal-label">${labelText}${achieved ? ' — ' : ''}${achieved ? '<span class="goal-done">выполнено ✓</span>' : ''}</span>
+              ${fmtSets(target.sets)}
+            </span>
+          </div>
+        `;
+      } else {
+        goalHtml = `
+          <div class="goal-box">
+            <span class="goal-icon">🎯</span>
+            <span class="goal-text"><span class="goal-label">Цель на сегодня</span>Первая запись — задай свой ориентир сам</span>
+          </div>
+        `;
+      }
+
+      const history = getHistoryFor(currentDay, name, todayStr());
+
+      let historyHtml = '';
+      if (history.length) {
+        const labels = ['Прошлый раз', '2 раза назад', '3 раза назад'];
+        const firstRow = `
+          <div class="history-row">
+            <span class="history-label">${labels[0]} (${history[0].date.slice(0,5)})</span>
+            <span class="history-sets">${fmtSets(history[0].sets)}</span>
+          </div>`;
+        if (history.length > 1) {
+          const restRows = history.slice(1).map((h,i) => `
+            <div class="history-row">
+              <span class="history-label">${labels[i+1]} (${h.date.slice(0,5)})</span>
+              <span class="history-sets">${fmtSets(h.sets)}</span>
+            </div>
+          `).join('');
+          historyHtml = `<details class="history-strip"><summary>${firstRow}</summary>${restRows}</details>`;
+        } else {
+          historyHtml = `<div class="history-strip">${firstRow}</div>`;
+        }
+      } else {
+        historyHtml = `<div class="history-strip"><div class="history-empty">Ещё не было записей этого упражнения</div></div>`;
+      }
+
+      const maxW = maxWeightFor(currentDay, name, todayStr());
+      const best1RM = historicalBest1RM(currentDay, name, todayStr());
+      const todaySets = todayExercises[name] || [];
+      const chipsHtml = todaySets.map((s, idx) => {
+        const e1rm = (s.w && s.r) ? Number(s.w) * (1 + Number(s.r) / 30) : 0;
+        const isPR = best1RM > 0 && e1rm > best1RM;
+        let cls = '', prefix = '', suffix = '';
+        if (isPR) {
+          cls = 'pr'; prefix = '🏆 ';
+        } else if (s.w !== null && s.r !== null) {
+          const prev = getPrevRepsAtWeight(currentDay, name, s.w, todayStr());
+          if (prev) {
+            const diff = Number(s.r) - prev.reps;
+            if (diff > 0) { cls = 'up'; suffix = ` (+${diff})`; }
+            else if (diff < 0) { cls = 'down'; suffix = ` (${diff})`; }
+            else { cls = 'same'; suffix = ' (=)'; }
+          }
+        }
+        return `<span class="set-chip${cls ? ' ' + cls : ''}" data-idx="${idx}">${prefix}${fmtSet(s)}${suffix}<button class="del-set">✕</button></span>`;
+      }).join('');
+
+      const oneRM = estimated1RM(currentDay, name);
+      card.innerHTML = `
+        <div class="exercise-head">
+          <span class="exercise-name">${escapeHtml(name)}</span>
+          <span class="exercise-1rm">${oneRM ? '~1ПМ ' + oneRM + 'кг' : ''}</span>
+          <button class="exercise-remove">убрать</button>
+        </div>
+        ${goalHtml}
+        ${historyHtml}
+        <div class="sets-today">${chipsHtml}</div>
+        <div class="set-input-row">
+          <input type="number" step="0.5" inputmode="decimal" placeholder="кг" class="w-input">
+          <input type="number" inputmode="numeric" placeholder="повт." class="r-input">
+          <button class="add-set-btn">+ подход</button>
+        </div>
+        <div class="plate-hint" id="plateHint"></div>
+      `;
+      wrap.appendChild(card);
+
+      const wInputEl = card.querySelector('.w-input');
+      wInputEl.addEventListener('input', () => {
+        const hint = card.querySelector('.plate-hint');
+        const val = Number(wInputEl.value);
+        const plateText = val ? fmtPlates(val) : null;
+        hint.textContent = plateText ? '🏋️ ' + plateText : '';
+      });
+
+      const addSet = async () => {
+        const wInput = card.querySelector('.w-input');
+        const rInput = card.querySelector('.r-input');
+        const w = wInput.value === '' ? null : Number(wInput.value);
+        const r = rInput.value === '' ? null : Number(rInput.value);
+        if (w === null && r === null) return;
+        const e1rm = (w && r) ? w * (1 + r / 30) : 0;
+        const wasP = best1RM > 0 && e1rm > best1RM;
+        if (wasP) todayPRs++;
+        todayExercises[name].push({ w, r });
+        wInput.value = ''; rInput.value = '';
+        card.querySelector('.plate-hint').textContent = '';
+        renderExercises();
+        updateStats();
+        await autosaveWorkout();
+        startRestTimer();
+      };
+      card.querySelector('.add-set-btn').addEventListener('click', addSet);
+      card.querySelector('.r-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addSet(); });
+
+      card.querySelectorAll('.del-set').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const chip = e.target.closest('.set-chip');
+          const idx = Number(chip.dataset.idx);
+          const removed = todayExercises[name][idx];
+          const removedE1rm = (removed && removed.w && removed.r) ? Number(removed.w) * (1 + Number(removed.r) / 30) : 0;
+          if (removed && best1RM > 0 && removedE1rm > best1RM && todayPRs > 0) todayPRs--;
+          todayExercises[name].splice(idx, 1);
+          renderExercises();
+          updateStats();
+          await autosaveWorkout();
+        });
+      });
+
+      card.querySelector('.exercise-remove').addEventListener('click', () => {
+        exerciseListForDay = exerciseListForDay.filter(n => n !== name);
+        delete todayExercises[name];
+        renderExercises();
+        updateStats();
+      });
+    });
+  }
+
+  let autosaveTimer = null;
+  async function autosaveWorkout() {
+    const exercisesOut = Object.entries(todayExercises)
+      .filter(([, sets]) => sets && sets.length)
+      .map(([name, sets]) => ({ name, sets }));
+    const msg = $('saveMsg');
+    if (!exercisesOut.length) {
+      // Nothing to save yet — if a workout existed for today and everything was removed, clean it up.
+      if (allWorkouts[todayStr()]) {
+        delete allWorkouts[todayStr()];
+        await safeStorageSet('workout:' + todayStr(), JSON.stringify({ date: todayStr(), dayType: currentDay, exercises: [] }));
+        renderPastList();
+      }
+      return;
+    }
+    const workout = { date: todayStr(), dayType: currentDay, exercises: exercisesOut };
+    msg.className = 'save-msg';
+    msg.textContent = 'Сохраняю...';
+    const ok = await safeStorageSet('workout:' + workout.date, JSON.stringify(workout));
+    if (ok) {
+      allWorkouts[workout.date] = workout;
+      msg.textContent = 'Сохранено автоматически ✓';
+      renderPastList();
+      updateStats();
+    } else {
+      msg.className = 'save-msg error';
+      msg.textContent = 'Не удалось сохранить — проверь соединение';
+    }
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { msg.textContent = ''; }, 2000);
+  }
+
+  $('addExerciseBtn').addEventListener('click', async () => {
+    const input = $('newExerciseInput');
+    const name = input.value.trim();
+    if (!name || exerciseListForDay.includes(name)) { input.value = ''; return; }
+    exerciseListForDay.push(name);
+    todayExercises[name] = [];
+    const custom = await loadCustomExercises(currentDay);
+    if (!custom.includes(name)) {
+      custom.push(name);
+      await saveCustomExercises(currentDay, custom);
+    }
+    input.value = '';
+    renderExercises();
+  });
+  $('newExerciseInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addExerciseBtn').click(); });
+
+  function renderPastList() {
+    const wrap = $('pastList');
+    const items = Object.values(allWorkouts).sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 12);
+    if (!items.length) { wrap.innerHTML = '<div class="past-empty">Пока нет сохранённых тренировок</div>'; return; }
+    wrap.innerHTML = items.map(w => `
+      <div class="past-item">
+        <div class="past-item-head"><span>${escapeHtml(w.dayType)}</span><span class="past-item-date">${w.date}</span></div>
+        <div class="past-item-ex">${w.exercises.map(e => `${escapeHtml(e.name)}: ${fmtSets(e.sets)}`).join('<br>')}</div>
+      </div>
+    `).join('');
+  }
+
+  function showMain() {
+    $('wkLoading').classList.add('hidden');
+    $('wkError').classList.add('hidden');
+    $('wkWeighIn').classList.add('hidden');
+    $('wkMain').classList.remove('hidden');
+  }
+  function showError(detail) {
+    $('wkLoading').classList.add('hidden');
+    $('wkMain').classList.add('hidden');
+    $('wkWeighIn').classList.add('hidden');
+    $('wkError').classList.remove('hidden');
+    if (detail) $('wkErrorDetail').textContent = detail;
+  }
+  function showWeighIn() {
+    $('wkLoading').classList.add('hidden');
+    $('wkError').classList.add('hidden');
+    $('wkMain').classList.add('hidden');
+    $('wkWeighIn').classList.remove('hidden');
+  }
+
+  // ---- Weekly weigh-in ----
+  function getMonday(d) {
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    const m = new Date(d);
+    m.setDate(d.getDate() + diff);
+    return m;
+  }
+  function fmtDMY(d) {
+    return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+  }
+  function currentWeekKey() { return fmtDMY(getMonday(new Date())); }
+
+  let weightHistory = {}; // weekKey -> value
+
+  async function loadWeightHistory() {
+    weightHistory = {};
+    let keys = [];
+    try {
+      const listRes = await window.storage.list('weight:', false);
+      keys = (listRes && listRes.keys) || [];
+    } catch (e) { keys = []; }
+    const results = await runLimited(keys, k => safeStorageGet(k), 3);
+    keys.forEach((k, i) => {
+      if (results[i] !== null) weightHistory[k.replace('weight:', '')] = Number(results[i]);
+    });
+  }
+
+  async function checkWeeklyWeighIn() {
+    await loadWeightHistory();
+    const wk = currentWeekKey();
+    return weightHistory[wk] !== undefined;
+  }
+
+  $('weighinSubmit').addEventListener('click', async () => {
+    const input = $('weighinInput');
+    const val = parseFloat(input.value);
+    const msg = $('weighinMsg');
+    if (!val || val <= 0 || val > 400) {
+      msg.textContent = 'Введи корректный вес в кг';
+      return;
+    }
+    msg.style.color = 'var(--text-dim)';
+    msg.textContent = 'Сохраняю...';
+    const ok = await safeStorageSet('weight:' + currentWeekKey(), String(val));
+    if (ok) {
+      weightHistory[currentWeekKey()] = val;
+      await proceedToMain();
+    } else {
+      msg.style.color = 'var(--bad)';
+      msg.textContent = 'Не удалось сохранить — попробуй ещё раз';
+    }
+  });
+  $('weighinInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('weighinSubmit').click(); });
+
+  function renderWeightTrend() {
+    const entries = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) }))
+      .sort((a,b) => a.d - b.d);
+    const svg = $('weightChart');
+    const emptyMsg = $('weightEmptyMsg');
+    const currentLabel = $('weightCurrentLabel');
+    if (!entries.length) {
+      svg.innerHTML = ''; emptyMsg.classList.remove('hidden'); currentLabel.textContent = '';
+      return;
+    }
+    const latest = entries[entries.length - 1];
+    let deltaText = '';
+    if (entries.length > 1) {
+      const prev = entries[entries.length - 2];
+      const delta = (latest.val - prev.val);
+      deltaText = ' (' + (delta > 0 ? '+' : '') + delta.toFixed(1) + ')';
+    }
+    currentLabel.textContent = latest.val.toFixed(1) + ' кг' + deltaText;
+
+    if (entries.length < 2) {
+      svg.innerHTML = '';
+      emptyMsg.classList.remove('hidden');
+      return;
+    }
+    emptyMsg.classList.add('hidden');
+
+    const W = 400, H = 130, PAD_TOP = 22, PAD_BOTTOM = 22, PAD_SIDE = 22;
+    const values = entries.map(e => e.val);
+    const min = Math.min(...values) - 0.5, max = Math.max(...values) + 0.5;
+    const plotH = H - PAD_TOP - PAD_BOTTOM;
+    const xStep = entries.length > 1 ? (W - PAD_SIDE*2) / (entries.length - 1) : 0;
+    const yFor = (v) => PAD_TOP + (max - v) / (max - min || 1) * plotH;
+    const xFor = (i) => PAD_SIDE + i * xStep;
+    const path = entries.map((e,i) => `${i===0?'M':'L'}${xFor(i).toFixed(1)},${yFor(e.val).toFixed(1)}`).join(' ');
+
+    // Thin labels so they don't overlap when there are many weigh-ins — always keep first/last visible.
+    const maxLabels = 6;
+    const step = entries.length <= maxLabels ? 1 : Math.ceil(entries.length / maxLabels);
+    const showLabel = (i) => i % step === 0 || i === entries.length - 1;
+
+    const dots = entries.map((e,i) => {
+      const cx = xFor(i).toFixed(1), cy = yFor(e.val).toFixed(1);
+      const dateStr = e.d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      let extras = `<title>${dateStr}: ${e.val.toFixed(1)} кг</title>`;
+      if (showLabel(i)) {
+        extras += `<text x="${cx}" y="${(Number(cy) - 8).toFixed(1)}" fill="#f5f3ee" font-size="9" font-family="JetBrains Mono" text-anchor="middle" font-weight="700">${e.val.toFixed(1)}</text>`;
+        extras += `<text x="${cx}" y="${H - 6}" fill="#8b8d93" font-size="8" font-family="JetBrains Mono" text-anchor="middle">${dateStr}</text>`;
+      }
+      return `<circle cx="${cx}" cy="${cy}" r="3" fill="#4f8ff7" />${extras}`;
+    }).join('');
+    svg.innerHTML = `<path d="${path}" fill="none" stroke="#4f8ff7" stroke-width="2" />${dots}`;
+  }
+
+  // ===================== AI COACH CHAT =====================
+  let chatHistory = [];
+
+  async function loadChatHistory() {
+    const val = await safeStorageGet('coachChatHistory');
+    chatHistory = val ? JSON.parse(val) : [];
+  }
+  async function saveChatHistory() {
+    if (chatHistory.length > 60) chatHistory = chatHistory.slice(-60);
+    await safeStorageSet('coachChatHistory', JSON.stringify(chatHistory));
+  }
+
+  function chatBubbleHtml(role, text, isError) {
+    const cls = role === 'user' ? 'coach-msg-user' : 'coach-msg-bot';
+    const bubbleCls = isError ? 'coach-msg-bubble error' : 'coach-msg-bubble';
+    return `<div class="coach-msg ${cls}"><div class="${bubbleCls}">${escapeHtml(text)}</div></div>`;
+  }
+
+  function renderChatLog() {
+    const log = $('coachChatLog');
+    if (!chatHistory.length) {
+      log.innerHTML = chatBubbleHtml('assistant', 'Привет. Я вижу твои калории, вес и тренировки за сегодня — спрашивай что угодно, отвечу по делу, а не общими фразами.');
+      return;
+    }
+    log.innerHTML = chatHistory.map(m => chatBubbleHtml(m.role, m.content)).join('');
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function buildCoachSystemPrompt() {
+    const t = sumTodayFood();
+    const wk = fmtDMY(getMonday(new Date()));
+    const weight = weightHistory[wk];
+    const w = allWorkouts[todayStr()];
+    const workoutInfo = w
+      ? `Тренировка сегодня (${getDayLabel(w.dayType)}): ${w.exercises.map(e => `${e.name} ${fmtSets(e.sets)}`).join('; ')}`
+      : 'Тренировки сегодня ещё не было записано.';
+    return `Ты — придирчивый, но справедливый персональный тренер по питанию и тренировкам. Отвечай прямо и по делу, без извинений и лишней воды, на русском языке. Отвечай коротко (2-5 предложений), если не просят подробнее.
+Текущие данные клиента:
+- Дневная цель: ${FOOD_TARGET.calories} ккал, белки ${FOOD_TARGET.protein}г, жиры ${FOOD_TARGET.fat}г, углеводы ${FOOD_TARGET.carbs}г
+- Съедено сегодня: ${Math.round(t.calories)} ккал, белки ${Math.round(t.protein)}г, жиры ${Math.round(t.fat)}г, углеводы ${Math.round(t.carbs)}г
+- Вес на текущей неделе: ${weight !== undefined ? weight + ' кг' : 'ещё не внесён'}
+- ${workoutInfo}
+Используй эти данные в ответах, когда это уместно к вопросу клиента.`;
+  }
+
+  async function callCoachAPI(userText) {
+    if (!window.apiConfig.hasKey()) throw new Error('NO_API_KEY');
+    const system = await buildCoachSystemPrompt();
+    // Gemini uses "model" instead of "assistant" for the AI's own turns.
+    const priorTurns = chatHistory.slice(-20).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    const data = await callGemini([{ text: userText }], system, priorTurns);
+    return data.candidates && data.candidates[0] && data.candidates[0].content
+      ? data.candidates[0].content.parts.map(p => p.text || '').join('')
+      : '';
+  }
+
+  async function sendCoachMessage() {
+    const input = $('coachChatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    $('coachChatSend').disabled = true;
+    chatHistory.push({ role: 'user', content: text });
+    renderChatLog();
+    const log = $('coachChatLog');
+    log.insertAdjacentHTML('beforeend', `<div class="coach-msg coach-msg-bot" id="coachTypingIndicator"><div class="coach-msg-bubble"><div class="coach-typing"><span></span><span></span><span></span></div></div></div>`);
+    log.scrollTop = log.scrollHeight;
+    try {
+      const reply = await callCoachAPI(text);
+      chatHistory.push({ role: 'assistant', content: reply });
+      await saveChatHistory();
+      renderChatLog();
+    } catch (err) {
+      console.error(err);
+      const reason = err.message === 'NO_API_KEY' ? 'Нужен API-ключ — нажми 🔑 внизу справа.' : ('Ошибка: ' + (err.message || 'сеть недоступна'));
+      const indicator = document.getElementById('coachTypingIndicator');
+      if (indicator) indicator.remove();
+      $('coachChatLog').insertAdjacentHTML('beforeend', chatBubbleHtml('assistant', reason, true));
+      $('coachChatLog').scrollTop = $('coachChatLog').scrollHeight;
+    } finally {
+      $('coachChatSend').disabled = false;
+    }
+  }
+
+  $('coachChatSend').addEventListener('click', sendCoachMessage);
+  $('coachChatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCoachMessage(); }
+  });
+
+  async function proceedToMain() {
+    await loadDayTypeLabels();
+    $('todayLabel').textContent = fmtDateLabel() + (getScheduledDayType() ? ' · ПО ПЛАНУ: ' + getDayLabel(getScheduledDayType()).toUpperCase() : '');
+    await setupDay();
+    renderPastList();
+    updateStats();
+    renderWeightTrend();
+    await renderGuidelineBadge();
+    await setupFoodModule();
+    await loadChatHistory();
+    renderChatLog();
+    showMain();
+  }
+
+  // ===================== FOOD MODULE =====================
+  let currentModule = 'food';
+  let todayFood = []; // array of entries for the currently selected food-log date
+  let weekFoodTotals = {}; // date -> totals
+  let selectedFoodDate = todayStr(); // dd.mm.yyyy — defaults to today, but can be changed to log past days
+
+  function dmyToIso(dmy) {
+    const [d, m, y] = dmy.split('.');
+    return `${y}-${m}-${d}`;
+  }
+  function isoToDmy(iso) {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  document.querySelectorAll('.module-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.module === currentModule) return;
+      currentModule = tab.dataset.module;
+      document.querySelectorAll('.module-tab').forEach(t => t.classList.toggle('active', t === tab));
+      $('moduleFood').classList.toggle('hidden', currentModule !== 'food');
+      $('moduleWorkout').classList.toggle('hidden', currentModule !== 'workout');
+      $('moduleCoach').classList.toggle('hidden', currentModule !== 'coach');
+      if (currentModule === 'coach') {
+        const log = $('coachChatLog');
+        log.scrollTop = log.scrollHeight;
+      }
+    });
+  });
+
+  $('foodDateInput').addEventListener('change', async (e) => {
+    if (!e.target.value) return;
+    selectedFoodDate = isoToDmy(e.target.value);
+    await refreshFoodDateView();
+  });
+  $('foodDateTodayBtn').addEventListener('click', async () => {
+    selectedFoodDate = todayStr();
+    $('foodDateInput').value = dmyToIso(selectedFoodDate);
+    await refreshFoodDateView();
+  });
+
+  async function refreshFoodDateView() {
+    const isPast = selectedFoodDate !== todayStr();
+    $('foodDatePickerRow').classList.toggle('past', isPast);
+    const note = $('foodDateNote');
+    if (isPast) {
+      note.textContent = '⚠️ Редактируешь запись за прошедший день — дашборд ниже показывает именно этот день, не сегодняшний.';
+      note.classList.remove('hidden');
+    } else {
+      note.classList.add('hidden');
+    }
+    $('kcalCardLabel').textContent = isPast ? 'Калории за ' + selectedFoodDate.slice(0,5) : 'Калории сегодня';
+    await loadSelectedDateFood();
+    await loadWellbeing();
+    renderFoodDashboard();
+    renderFoodList();
+    if (!isPast) { renderWeekBar(); renderPatternBanner(); }
+  }
+
+  async function seedFoodIfNeeded() {
+    const dates = Object.keys(FOOD_SEED);
+    const checks = await runLimited(dates, d => safeStorageGet('food:' + d), 3);
+    const toSeed = dates.filter((d, i) => checks[i] === null);
+    await runLimited(toSeed, d => safeStorageSet('food:' + d, JSON.stringify(FOOD_SEED[d])), 3);
+  }
+
+  async function loadSelectedDateFood() {
+    const val = await safeStorageGet('food:' + selectedFoodDate);
+    todayFood = val ? JSON.parse(val) : [];
+  }
+
+  async function saveSelectedDateFood() {
+    await safeStorageSet('food:' + selectedFoodDate, JSON.stringify(todayFood));
+  }
+
+  function currentWeekDates() {
+    // Calendar week Monday → Sunday, containing today. A new week always starts Monday.
+    const monday = getMonday(new Date());
+    const arr = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      arr.push(fmtDMY(d));
+    }
+    return arr;
+  }
+
+  async function loadWeekFoodTotals() {
+    weekFoodTotals = {};
+    const dates = currentWeekDates();
+    const results = await runLimited(dates, d => safeStorageGet('food:' + d), 3);
+    dates.forEach((d, i) => {
+      if (!results[i]) { weekFoodTotals[d] = null; return; }
+      try {
+        const entries = JSON.parse(results[i]);
+        const t = entries.reduce((acc, e) => {
+          acc.calories += Number(e.calories) || 0;
+          acc.protein += Number(e.protein) || 0;
+          acc.fat += Number(e.fat) || 0;
+          acc.carbs += Number(e.carbs) || 0;
+          return acc;
+        }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+        weekFoodTotals[d] = { entries, totals: t };
+      } catch (e) { weekFoodTotals[d] = null; }
+    });
+  }
+
+  function sumTodayFood() {
+    return todayFood.reduce((acc, e) => {
+      acc.calories += Number(e.calories) || 0;
+      acc.protein += Number(e.protein) || 0;
+      acc.fat += Number(e.fat) || 0;
+      acc.carbs += Number(e.carbs) || 0;
+      return acc;
+    }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+  }
+
+  function renderFoodDashboard() {
+    const t = sumTodayFood();
+    $('kcalConsumed').textContent = Math.round(t.calories);
+    $('proteinVal').textContent = Math.round(t.protein);
+    $('fatVal').textContent = Math.round(t.fat);
+    $('carbsVal').textContent = Math.round(t.carbs);
+    const kcalPct = Math.min(100, (t.calories / FOOD_TARGET.calories) * 100);
+    const kcalBar = $('kcalBar');
+    kcalBar.style.width = kcalPct + '%';
+    kcalBar.classList.toggle('over', t.calories > FOOD_TARGET.calories);
+    $('proteinBar').style.width = Math.min(100, (t.protein / FOOD_TARGET.protein) * 100) + '%';
+    $('fatBar').style.width = Math.min(100, (t.fat / FOOD_TARGET.fat) * 100) + '%';
+    $('carbsBar').style.width = Math.min(100, (t.carbs / FOOD_TARGET.carbs) * 100) + '%';
+  }
+
+  function renderWeekBar() {
+    const weeklyTarget = FOOD_TARGET.calories * 7;
+    const today = todayStr();
+    const weekDates = currentWeekDates();
+    let used = 0;
+    let daysPassed = 0; // days from Monday through today (inclusive)
+    weekDates.forEach(d => {
+      const isPastOrToday = parseDate(d) <= parseDate(today);
+      if (!isPastOrToday) return; // future day this week — don't count yet
+      daysPassed++;
+      if (d === today) { used += sumTodayFood().calories; return; }
+      const v = weekFoodTotals[d];
+      if (v) used += v.totals.calories;
+    });
+    const pct = Math.min(100, (used / weeklyTarget) * 100);
+    $('weekBar').style.width = pct + '%';
+    $('weekNum').textContent = Math.round(used).toLocaleString('ru-RU') + ' / ' + weeklyTarget.toLocaleString('ru-RU') + ' ккал';
+    const remaining = weeklyTarget - used;
+    const daysLeft = 7 - daysPassed;
+    if (daysLeft > 0 && remaining > 0) {
+      $('weekNote').textContent = 'Остаток: ~' + Math.round(remaining / daysLeft).toLocaleString('ru-RU') + ' ккал/день до конца недели (' + daysLeft + ' дн.)';
+    } else if (remaining < 0) {
+      $('weekNote').textContent = 'Неделя уже превышает цель на ' + Math.abs(Math.round(remaining)).toLocaleString('ru-RU') + ' ккал';
+    } else {
+      $('weekNote').textContent = '';
+    }
+  }
+
+  function renderPatternBanner() {
+    const counts = {};
+    Object.entries(weekFoodTotals).forEach(([d, v]) => {
+      const entries = d === todayStr() ? todayFood : (v ? v.entries : []);
+      entries.forEach(e => {
+        if (e.verdict !== 'Плохо') return;
+        counts[e.name] = (counts[e.name] || 0) + 1;
+      });
+    });
+    const repeated = Object.entries(counts).filter(([, c]) => c >= 2).sort((a,b) => b[1]-a[1]);
+    const box = $('patternBanner');
+    if (!repeated.length) { box.innerHTML = ''; return; }
+    const top = repeated[0];
+    box.innerHTML = `<div class="pattern-banner">⚠️ <span><b>${escapeHtml(top[0])}</b> встречался ${top[1]} раза за последние 7 дней среди "плохих" выборов — похоже на паттерн, а не случайность.</span></div>`;
+  }
+
+  function renderQuickChips() {
+    const wrap = $('quickChips');
+    wrap.innerHTML = QUICK_FOODS.map((f, i) => `<div class="quick-chip" data-idx="${i}">+ ${escapeHtml(f.name)}</div>`).join('');
+    wrap.querySelectorAll('.quick-chip').forEach(chip => {
+      chip.addEventListener('click', async () => {
+        const f = QUICK_FOODS[Number(chip.dataset.idx)];
+        await addFoodEntry({ name: f.name, calories: f.calories, protein: f.protein, fat: f.fat, carbs: f.carbs, verdict: f.verdict, comment: '' });
+      });
+    });
+  }
+
+  function buildFoodEntry(result) {
+    const isPast = selectedFoodDate !== todayStr();
+    return {
+      id: 'e' + Date.now() + Math.random() + Math.random(),
+      time: isPast ? 'задним числом' : new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      name: result.name,
+      calories: Number(result.calories) || 0,
+      protein: Number(result.protein) || 0,
+      fat: Number(result.fat) || 0,
+      carbs: Number(result.carbs) || 0,
+      verdict: ['Хорошо','Средне','Плохо'].includes(result.verdict) ? result.verdict : 'Средне',
+      comment: result.comment || '',
+      isCheat: $('cheatToggle').checked
+    };
+  }
+
+  // Persists + re-renders once after one or more entries were pushed into todayFood.
+  async function commitFoodEntries() {
+    const isPast = selectedFoodDate !== todayStr();
+    await saveSelectedDateFood();
+    weekFoodTotals[selectedFoodDate] = { entries: todayFood, totals: sumTodayFood() };
+    renderFoodDashboard();
+    if (!isPast) renderWeekBar();
+    renderFoodList();
+    if (!isPast) renderPatternBanner();
+  }
+
+  // ===== Manual food entry — free, no AI/API key needed =====
+  let manualVerdict = 'Хорошо';
+  document.querySelectorAll('.manual-verdict-row button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      manualVerdict = btn.dataset.v;
+      const cls = manualVerdict === 'Хорошо' ? 'good' : manualVerdict === 'Плохо' ? 'bad' : 'neutral';
+      document.querySelectorAll('.manual-verdict-row button').forEach(b => {
+        b.classList.remove('active','good','neutral','bad');
+      });
+      btn.classList.add('active', cls);
+    });
+  });
+
+  $('manualAddBtn').addEventListener('click', async () => {
+    const name = $('manualName').value.trim();
+    const kcal = Number($('manualKcal').value) || 0;
+    if (!name || kcal <= 0) {
+      $('manualName').style.borderColor = !name ? 'var(--bad)' : '';
+      $('manualKcal').style.borderColor = kcal <= 0 ? 'var(--bad)' : '';
+      return;
+    }
+    const entry = buildFoodEntry({
+      name,
+      calories: kcal,
+      protein: Number($('manualProtein').value) || 0,
+      fat: Number($('manualFat').value) || 0,
+      carbs: Number($('manualCarbs').value) || 0,
+      verdict: manualVerdict,
+      comment: ''
+    });
+    todayFood.push(entry);
+    await commitFoodEntries();
+    ['manualName','manualKcal','manualProtein','manualFat','manualCarbs'].forEach(id => {
+      $(id).value = '';
+      $(id).style.borderColor = '';
+    });
+  });
+
+  async function addFoodEntry(result) {
+    const entry = buildFoodEntry(result);
+    todayFood.push(entry);
+    await commitFoodEntries();
+    if (result.comment) $('verdictBox').innerHTML = verdictHtml(entry);
+  }
+
+  function verdictHtml(entry) {
+    const verdictClass = entry.verdict === 'Хорошо' ? 'good' : entry.verdict === 'Плохо' ? 'bad' : 'neutral';
+    const stampText = entry.verdict === 'Хорошо' ? 'ОДОБРЕНО' : entry.verdict === 'Плохо' ? 'СРЫВ' : 'ТАК СЕБЕ';
+    return `
+      <div class="verdict-box">
+        <div class="stamp ${verdictClass}">${stampText}</div>
+        <div>
+          <div class="verdict-food-name">${escapeHtml(entry.name)}</div>
+          <div class="verdict-macros">${Math.round(entry.calories)} ккал · Б ${Math.round(entry.protein)}г · Ж ${Math.round(entry.fat)}г · У ${Math.round(entry.carbs)}г</div>
+          <div class="verdict-comment ${verdictClass}">${escapeHtml(entry.comment)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFoodList() {
+    const list = $('foodList');
+    if (!todayFood.length) { list.innerHTML = ''; $('foodEmpty').classList.remove('hidden'); renderFoodModal(); return; }
+    $('foodEmpty').classList.add('hidden');
+    list.innerHTML = todayFood.slice().reverse().map(e => {
+      const cls = e.verdict === 'Хорошо' ? 'good' : e.verdict === 'Плохо' ? 'bad' : 'neutral';
+      return `
+        <div class="food-row">
+          <span class="food-dot ${cls}"></span>
+          <span class="food-info">
+            <div class="food-name">${escapeHtml(e.name)}${e.isCheat ? ' 🎉' : ''}</div>
+            <div class="food-time">${e.time}</div>
+          </span>
+          <span class="food-kcal">${Math.round(e.calories)} ккал</span>
+          <button class="food-del" data-id="${e.id}">✕</button>
+        </div>
+      `;
+    }).join('');
+    list.querySelectorAll('.food-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const isPast = selectedFoodDate !== todayStr();
+        todayFood = todayFood.filter(e => e.id !== btn.dataset.id);
+        await saveSelectedDateFood();
+        weekFoodTotals[selectedFoodDate] = { entries: todayFood, totals: sumTodayFood() };
+        renderFoodDashboard();
+        if (!isPast) renderWeekBar();
+        renderFoodList();
+        if (!isPast) renderPatternBanner();
+      });
+    });
+    renderFoodModal();
+  }
+
+  function renderFoodModal() {
+    const wrap = $('foodModalList');
+    if (!wrap) return;
+    const dow = parseDate(selectedFoodDate).toLocaleDateString('ru-RU', { weekday: 'long' });
+    $('foodModalTitle').textContent = 'Съедено · ' + selectedFoodDate.slice(0,5) + ' (' + dow + ')';
+    if (!todayFood.length) {
+      wrap.innerHTML = '<div class="food-empty">Пока ничего не добавлено</div>';
+      return;
+    }
+    wrap.innerHTML = todayFood.slice().reverse().map(e => {
+      const cls = e.verdict === 'Хорошо' ? 'good' : e.verdict === 'Плохо' ? 'bad' : 'neutral';
+      return `
+        <div class="modal-item">
+          <div class="modal-item-top">
+            <span class="modal-item-name">${escapeHtml(e.name)}${e.isCheat ? ' 🎉' : ''}</span>
+            <span class="modal-item-kcal">${Math.round(e.calories)} ккал</span>
+          </div>
+          <div class="modal-item-macros">Б ${Math.round(e.protein)}г · Ж ${Math.round(e.fat)}г · У ${Math.round(e.carbs)}г</div>
+          <div class="modal-item-time">${e.time}</div>
+          ${e.comment ? `<div class="modal-item-comment ${cls}">${escapeHtml(e.comment)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  $('expandFoodBtn').addEventListener('click', () => {
+    renderFoodModal();
+    $('foodModalOverlay').classList.remove('hidden');
+  });
+  $('foodModalClose').addEventListener('click', () => $('foodModalOverlay').classList.add('hidden'));
+  $('foodModalOverlay').addEventListener('click', (e) => {
+    if (e.target === $('foodModalOverlay')) $('foodModalOverlay').classList.add('hidden');
+  });
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = () => reject(new Error('read failed'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function analyzeFoodPrompt(promptExtra, imageContent) {
+    if (!window.apiConfig.hasKey()) {
+      throw new Error('NO_API_KEY');
+    }
+    const t = sumTodayFood();
+    const prompt = `Ты — придирчивый, но справедливый персональный тренер по питанию. Клиент худеет.
+Его дневная цель: ${FOOD_TARGET.calories} ккал, белки ${FOOD_TARGET.protein}г, жиры ${FOOD_TARGET.fat}г, углеводы ${FOOD_TARGET.carbs}г.
+Уже съедено сегодня: ${Math.round(t.calories)} ккал, белки ${Math.round(t.protein)}г, жиры ${Math.round(t.fat)}г, углеводы ${Math.round(t.carbs)}г.
+${promptExtra}
+
+Вердикт ("Хорошо"/"Средне"/"Плохо") ставь в первую очередь за само блюдо — его состав, баланс белка/жира/углеводов, обработку (жареное/сырое, простые сахара и т.д.). Контекст дня (что уже съедено) используй только для комментария и рекомендации, а не для того чтобы занижать вердикт хорошему блюду только из-за того что день пока не идеален.
+
+Ответь СТРОГО в формате JSON и ничем больше — ни до, ни после, без markdown-разметки:
+{"name":"короткое название блюда на русском","calories":число,"protein":число,"fat":число,"carbs":число,"verdict":"Хорошо"|"Средне"|"Плохо","comment":"прямой комментарий тренера на русском, максимум 20 слов, без извинений"}`;
+
+    // Gemini's multimodal request shape: an array of "parts" — text and/or
+    // inline_data (base64 image) — inside a single "contents" turn.
+    const parts = imageContent
+      ? [{ inline_data: { mime_type: imageContent.media_type, data: imageContent.data } }, { text: prompt }]
+      : [{ text: prompt }];
+
+    const data = await callGemini(parts);
+    const text = data.candidates && data.candidates[0] && data.candidates[0].content
+      ? data.candidates[0].content.parts.map(p => p.text || '').join('')
+      : '';
+    return parseFoodJson(text);
+  }
+
+  // Shared Gemini call — used by both food analysis and the coach chat.
+  // Key goes in the URL (Gemini's own pattern), not a header — no special
+  // browser-access header needed like Anthropic required.
+  async function callGemini(parts, systemInstruction, priorTurns) {
+    const model = 'gemini-2.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(window.apiConfig.getKey())}`;
+    const body = {
+      contents: [...(priorTurns || []), { role: 'user', parts }]
+    };
+    if (systemInstruction) body.system_instruction = { parts: [{ text: systemInstruction }] };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const errBody = await response.json();
+        detail = errBody && errBody.error && errBody.error.message ? errBody.error.message : '';
+      } catch (e) { /* body wasn't JSON, ignore */ }
+      throw new Error('api error ' + response.status + (detail ? ': ' + detail : ''));
+    }
+    return response.json();
+  }
+
+  // Robust JSON extraction: strips markdown fences, then pulls out the
+  // {...} substring even if the model added stray text around it, so a
+  // single extra character doesn't fail the whole request.
+  function parseFoodJson(text) {
+    let clean = text.replace(/```json|```/g, '').trim();
+    try {
+      return JSON.parse(clean);
+    } catch (e) {
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        const slice = clean.slice(start, end + 1);
+        return JSON.parse(slice); // let this throw if still invalid — caller handles it
+      }
+      throw e;
+    }
+  }
+
+  // Retries the analysis once on failure (covers transient parse/network hiccups)
+  // before giving up and letting the caller show an error.
+  async function analyzeFoodWithRetry(promptExtra, imageContent) {
+    try {
+      return await analyzeFoodPrompt(promptExtra, imageContent);
+    } catch (e) {
+      console.warn('First attempt failed, retrying once:', e);
+      return await analyzeFoodPrompt(promptExtra, imageContent);
+    }
+  }
+
+  $('photoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('loadingBox').classList.remove('hidden');
+    $('verdictBox').innerHTML = '';
+    try {
+      const base64 = await fileToBase64(file);
+      const result = await analyzeFoodWithRetry(
+        'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ на порцию, которую видишь.',
+        { media_type: file.type || 'image/jpeg', data: base64 }
+      );
+      await addFoodEntry(result);
+    } catch (err) {
+      console.error(err);
+      const noKey = err.message === 'NO_API_KEY';
+      const reason = noKey ? 'Нужен API-ключ Google Gemini (бесплатно) — нажми 🔑 внизу справа и вставь его.' : ('Не получилось: ' + (err.message || 'неизвестная ошибка сети'));
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${escapeHtml(reason)}</div></div>`;
+    } finally {
+      $('loadingBox').classList.add('hidden');
+      e.target.value = '';
+    }
+  });
+
+  $('textFoodBtn').addEventListener('click', async () => {
+    const input = $('textFoodInput');
+    const raw = input.value.trim();
+    if (!raw) return;
+    // Each line is treated as a separate food item — lets you log a whole
+    // day's worth of meals in one paste instead of one entry at a time.
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!window.apiConfig.hasKey()) {
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Нужен API-ключ Google Gemini (бесплатно) — нажми 🔑 внизу справа и вставь его.</div></div>`;
+      return;
+    }
+    $('loadingBox').classList.remove('hidden');
+    $('verdictBox').innerHTML = '';
+    const verdictParts = [];
+    for (const line of lines) {
+      try {
+        const result = await analyzeFoodWithRetry(`Клиент описал текстом, что съел: "${line}". Оцени примерную калорийность и БЖУ по этому описанию.`, null);
+        const entry = buildFoodEntry(result);
+        todayFood.push(entry);
+        verdictParts.push(verdictHtml(entry));
+      } catch (err) {
+        console.error(err);
+        const reason = err && err.message === 'NO_API_KEY'
+          ? 'нет ключа — нажми 🔑'
+          : (err && err.message) || 'неизвестная ошибка сети';
+        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}» — не получилось (${escapeHtml(reason)}).</div></div>`);
+      }
+    }
+    await commitFoodEntries();
+    $('verdictBox').innerHTML = verdictParts.join('');
+    input.value = '';
+    $('loadingBox').classList.add('hidden');
+  });
+  $('textFoodInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('textFoodBtn').click(); });
+
+  async function buildDaySummaryText() {
+    const t = sumTodayFood();
+    const dow = parseDate(selectedFoodDate).toLocaleDateString('ru-RU', { weekday: 'long' });
+    let lines = [];
+    lines.push(`Сводка за ${selectedFoodDate} (${dow}):`);
+    lines.push('');
+    lines.push('ПИТАНИЕ:');
+    if (!todayFood.length) {
+      lines.push('— ничего не записано —');
+    } else {
+      todayFood.forEach(e => {
+        lines.push(`- ${e.name}${e.isCheat ? ' [чит-мил]' : ''}: ${Math.round(e.calories)} ккал, Б ${Math.round(e.protein)}г, Ж ${Math.round(e.fat)}г, У ${Math.round(e.carbs)}г`);
+      });
+      lines.push('');
+      lines.push(`ИТОГО: ${Math.round(t.calories)} ккал, белки ${Math.round(t.protein)}г, жиры ${Math.round(t.fat)}г, углеводы ${Math.round(t.carbs)}г`);
+    }
+    const w = allWorkouts[selectedFoodDate];
+    if (w) {
+      lines.push('');
+      lines.push(`ТРЕНИРОВКА (${w.dayType}):`);
+      w.exercises.forEach(ex => {
+        lines.push(`- ${ex.name}: ${fmtSets(ex.sets)}`);
+      });
+    }
+    const wk = fmtDMY(getMonday(parseDate(selectedFoodDate)));
+    if (weightHistory[wk] !== undefined) {
+      lines.push('');
+      lines.push(`ВЕС ЗА ЭТУ НЕДЕЛЮ: ${weightHistory[wk]} кг`);
+    }
+    const wbVal = await safeStorageGet('wellbeing:' + selectedFoodDate);
+    if (wbVal) {
+      try {
+        const wb = JSON.parse(wbVal);
+        const parts = [];
+        if (wb.sleep !== null && wb.sleep !== undefined) parts.push(`сон ${wb.sleep} ч`);
+        if (wb.mood !== null && wb.mood !== undefined) parts.push(`настроение ${wb.mood}/5`);
+        if (wb.water) parts.push(`вода ${wb.water} мл`);
+        if (parts.length) {
+          lines.push('');
+          lines.push(`САМОЧУВСТВИЕ: ${parts.join(', ')}`);
+        }
+      } catch (e) { /* skip malformed */ }
+    }
+    return lines.join('\n');
+  }
+
+  $('exportDayBtn').addEventListener('click', async () => {
+    const msg = $('exportMsg');
+    try {
+      const text = await buildDaySummaryText();
+      await navigator.clipboard.writeText(text);
+      msg.textContent = 'Скопировано ✓ — вставь в чат с тренером';
+    } catch (e) {
+      msg.textContent = 'Не удалось скопировать автоматически — выдели текст ниже вручную';
+      $('verdictBox').innerHTML = `<div class="verdict-box"><pre style="white-space:pre-wrap;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text);">${escapeHtml(await buildDaySummaryText())}</pre></div>`;
+    }
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  });
+
+  // ===== Custom (persisted) target =====
+  async function loadFoodTarget() {
+    const val = await safeStorageGet('foodTarget');
+    if (val) {
+      try { FOOD_TARGET = { ...FOOD_TARGET_DEFAULT, ...JSON.parse(val) }; } catch (e) { /* keep default */ }
+    }
+    $('kcalTarget').textContent = FOOD_TARGET.calories;
+    $('proteinTarget').textContent = FOOD_TARGET.protein;
+    $('fatTarget').textContent = FOOD_TARGET.fat;
+    $('carbsTarget').textContent = FOOD_TARGET.carbs;
+  }
+  async function saveFoodTarget() {
+    await safeStorageSet('foodTarget', JSON.stringify(FOOD_TARGET));
+  }
+
+  // ===== Adaptive TDEE (MacroFactor-style: expenditure = intake + weight-change energy equivalent) =====
+  async function computeAdaptiveTarget() {
+    const weeks = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) })).sort((a,b) => a.d - b.d);
+    const box = $('adaptiveCard');
+    const summaryText = $('adaptiveSummaryText');
+    const body = $('adaptiveBody');
+    const applyBtn = $('adaptiveApplyBtn');
+    if (weeks.length < 2) {
+      box.classList.remove('hidden');
+      summaryText.textContent = `Адаптивная цель — нужно ещё ${2 - weeks.length} замер(а) веса`;
+      body.innerHTML = `Нужно минимум 2 еженедельных замера веса, чтобы рассчитать твой реальный расход калорий (сейчас: ${weeks.length}). Пока цель фиксированная — ${FOOD_TARGET.calories} ккал.`;
+      applyBtn.classList.add('hidden');
+      return;
+    }
+    const w1 = weeks[weeks.length - 2], w2 = weeks[weeks.length - 1];
+    const days = Math.max(1, Math.round((w2.d - w1.d) / 86400000));
+    const weightChangeKg = w2.val - w1.val; // negative = lost weight
+    const energyEquivPerDay = (weightChangeKg * 7700) / days; // kcal/day represented by the weight change
+
+    // Average intake over that same window (from stored day totals where available)
+    const dates = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(w1.d);
+      d.setDate(d.getDate() + i + 1);
+      dates.push(fmtDMY(d));
+    }
+    const dayVals = await runLimited(dates, d => safeStorageGet('food:' + d), 3);
+    let sum = 0, counted = 0;
+    dayVals.forEach(val => {
+      if (!val) return;
+      try {
+        const entries = JSON.parse(val);
+        const kcal = entries.reduce((a, e) => a + (Number(e.calories) || 0), 0);
+        if (kcal > 0) { sum += kcal; counted++; }
+      } catch (e) { /* skip */ }
+    });
+    if (counted < Math.max(3, Math.floor(days * 0.5))) {
+      box.classList.remove('hidden');
+      summaryText.textContent = 'Адаптивная цель — недостаточно данных питания пока';
+      body.innerHTML = `Недостаточно записей питания между последними двумя взвешиваниями (${counted} из ${days} дней), чтобы точно оценить расход. Продолжай вести дневник каждый день — пересчитаю, как только данных будет достаточно.`;
+      applyBtn.classList.add('hidden');
+      return;
+    }
+    const avgIntake = sum / counted;
+    const estimatedTDEE = Math.round(avgIntake + energyEquivPerDay);
+    const suggestedDeficit = 550; // matches the original plan rationale (~0.5-0.6 kg/week)
+    const suggestedCalories = Math.max(1500, estimatedTDEE - suggestedDeficit);
+
+    box.classList.remove('hidden');
+    const trendWord = weightChangeKg < -0.05 ? 'снижался' : weightChangeKg > 0.05 ? 'рос' : 'держался ровно';
+    body.innerHTML = `За последние ${days} дн. вес ${trendWord} (<b>${weightChangeKg > 0 ? '+' : ''}${weightChangeKg.toFixed(1)} кг</b>) при среднем питании <b>${Math.round(avgIntake)} ккал/день</b>.<br>
+      Расчётный реальный расход (TDEE): <b>~${estimatedTDEE} ккал</b>.<br>
+      Текущая цель: <b>${FOOD_TARGET.calories} ккал</b>.`;
+
+    if (Math.abs(suggestedCalories - FOOD_TARGET.calories) >= 75) {
+      summaryText.textContent = `Адаптивная цель — предлагаю ${suggestedCalories} ккал вместо ${FOOD_TARGET.calories}`;
+      body.innerHTML += `<br>Рекомендуемая цель для дефицита ~0.5 кг/нед: <b>${suggestedCalories} ккал</b>.`;
+      applyBtn.textContent = `Обновить цель на ${suggestedCalories} ккал`;
+      applyBtn.classList.remove('hidden');
+      applyBtn.onclick = async () => {
+        const newFat = FOOD_TARGET.fat;
+        const newProtein = FOOD_TARGET.protein;
+        const newCarbs = Math.max(50, Math.round((suggestedCalories - newProtein * 4 - newFat * 9) / 4));
+        FOOD_TARGET = { calories: suggestedCalories, protein: newProtein, fat: newFat, carbs: newCarbs };
+        await saveFoodTarget();
+        await loadFoodTarget();
+        renderFoodDashboard();
+        renderWeekBar();
+        await computeAdaptiveTarget();
+      };
+    } else {
+      summaryText.textContent = `Адаптивная цель — ${FOOD_TARGET.calories} ккал уже точны`;
+      body.innerHTML += `<br>Цель уже близка к расчётной — менять не нужно.`;
+      applyBtn.classList.add('hidden');
+    }
+  }
+
+  $('adaptiveSummaryBtn').addEventListener('click', () => {
+    $('adaptiveBody').classList.toggle('hidden');
+    $('adaptiveChevron').classList.toggle('open');
+  });
+
+  $('photoToggleBtn').addEventListener('click', () => {
+    const zone = $('uploadZone');
+    const isHidden = zone.classList.contains('hidden');
+    zone.classList.toggle('hidden');
+    $('photoToggleBtn').textContent = isHidden ? '📷 Скрыть фото' : '📷 Или добавь по фото';
+  });
+
+  // ===== Logging streak =====
+  async function computeStreak() {
+    let streak = todayFood.length ? 1 : 0;
+    for (let i = 1; i < 60; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = fmtDMY(d);
+      const val = await safeStorageGet('food:' + ds);
+      if (!val) break;
+      try {
+        const entries = JSON.parse(val);
+        if (!entries.length) break;
+      } catch (e) { break; }
+      streak++;
+    }
+    $('streakInline').textContent = streak > 0 ? `🔥 ${streak} дн. подряд` : '';
+  }
+
+  // ===== Wellbeing check-in (sleep hours/mood/water — ACSM 2026 trend #6: exercise & mental health) =====
+  let wellbeingData = { sleep: null, mood: null, water: 0 };
+
+  async function loadWellbeing() {
+    const val = await safeStorageGet('wellbeing:' + selectedFoodDate);
+    wellbeingData = val ? { sleep: null, mood: null, water: 0, ...JSON.parse(val) } : { sleep: null, mood: null, water: 0 };
+    document.querySelectorAll('.wellbeing-scale').forEach(scale => {
+      const metric = scale.dataset.metric;
+      scale.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.val) === wellbeingData[metric]);
+      });
+    });
+    $('sleepHoursInput').value = wellbeingData.sleep !== null ? wellbeingData.sleep : '';
+    $('waterTotal').textContent = (wellbeingData.water || 0) + ' мл';
+  }
+
+  async function saveWellbeing() {
+    await safeStorageSet('wellbeing:' + selectedFoodDate, JSON.stringify(wellbeingData));
+    const msg = $('wellbeingSaved');
+    msg.textContent = 'сохранено ✓';
+    setTimeout(() => { msg.textContent = ''; }, 1500);
+  }
+
+  document.querySelectorAll('.wellbeing-scale button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const scale = btn.closest('.wellbeing-scale');
+      const metric = scale.dataset.metric;
+      const val = Number(btn.dataset.val);
+      wellbeingData[metric] = wellbeingData[metric] === val ? null : val; // tap again to clear
+      scale.querySelectorAll('button').forEach(b => b.classList.toggle('active', Number(b.dataset.val) === wellbeingData[metric]));
+      await saveWellbeing();
+    });
+  });
+
+  $('sleepHoursInput').addEventListener('change', async (e) => {
+    const val = e.target.value === '' ? null : Number(e.target.value);
+    wellbeingData.sleep = val;
+    await saveWellbeing();
+  });
+
+  document.querySelectorAll('.water-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const add = Number(btn.dataset.add);
+      wellbeingData.water = Math.max(0, (wellbeingData.water || 0) + add);
+      $('waterTotal').textContent = wellbeingData.water + ' мл';
+      await saveWellbeing();
+    });
+  });
+
+  // ===== Strength training guideline badge (ACSM/WHO: 2+ sessions/week minimum) =====
+  async function renderGuidelineBadge() {
+    const badge = $('guidelineBadge');
+    const monday = getMonday(new Date());
+    let count = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      if (d > new Date()) break;
+      const ds = fmtDMY(d);
+      const w = allWorkouts[ds];
+      if (w && w.exercises && w.exercises.length) count++;
+    }
+    badge.classList.add('show');
+    if (count >= 2) {
+      badge.classList.add('met'); badge.classList.remove('unmet');
+      badge.innerHTML = `✅ ${count} силовых на этой неделе — норма ВОЗ/ACSM (мин. 2/нед) выполнена`;
+    } else {
+      badge.classList.add('unmet'); badge.classList.remove('met');
+      badge.innerHTML = `⏳ ${count} из 2 минимально рекомендованных силовых тренировок на этой неделе`;
+    }
+  }
+
+  async function setupFoodModule() {
+    selectedFoodDate = todayStr();
+    $('foodDateInput').value = dmyToIso(selectedFoodDate);
+    $('foodDateInput').max = dmyToIso(todayStr());
+    await loadFoodTarget();
+    await loadSelectedDateFood();
+    await loadWeekFoodTotals();
+    await loadWellbeing();
+    renderQuickChips();
+    renderFoodDashboard();
+    renderWeekBar();
+    renderFoodList();
+    renderPatternBanner();
+    await computeStreak();
+    await computeAdaptiveTarget();
+  }
+
+  async function init() {
+    $('wkLoading').classList.remove('hidden');
+    $('wkError').classList.add('hidden');
+    $('wkMain').classList.add('hidden');
+    $('wkWeighIn').classList.add('hidden');
+    try {
+      if (!window.storage || typeof window.storage.get !== 'function') {
+        storageOk = false;
+        await proceedToMain();
+        return;
+      }
+      await seedIfNeeded();
+      await seedFoodIfNeeded();
+      await loadAllWorkouts();
+      const hasWeekWeight = await checkWeeklyWeighIn();
+      if (!hasWeekWeight) {
+        $('weighinWeekLabel').textContent = 'Неделя с ' + currentWeekKey();
+        $('weighinInput').value = '';
+        $('weighinMsg').textContent = '';
+        showWeighIn();
+        return;
+      }
+      await proceedToMain();
+    } catch (e) {
+      showError('Произошла ошибка при загрузке данных: ' + (e && e.message ? e.message : 'неизвестная ошибка'));
+    }
+  }
+
+  $('wkRetryBtn').addEventListener('click', init);
+
+  window.startApp = init; // called by the auth-gate script below, once signed in + onboarded
+})();
+</script>
+
+<script>
+  // ===================== AUTH GATE + ONBOARDING =====================
+  // Decides what the person sees on load: login screen, one-time setup
+  // questionnaire, or straight into the app — in that order.
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    let authMode = 'login';
+
+    function show(id) {
+      ['authScreen', 'onboardScreen'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+      document.querySelector('.wk-app').classList.toggle('hidden', true);
+    }
+    function showApp() {
+      $('authScreen').classList.add('hidden');
+      $('onboardScreen').classList.add('hidden');
+      document.querySelector('.wk-app').classList.remove('hidden');
+    }
+
+    // ---- Auth screen wiring ----
+    $('authTabLogin').addEventListener('click', () => {
+      authMode = 'login';
+      $('authTabLogin').classList.add('active');
+      $('authTabSignup').classList.remove('active');
+      $('authSubmitBtn').textContent = 'Войти';
+    });
+    $('authTabSignup').addEventListener('click', () => {
+      authMode = 'signup';
+      $('authTabSignup').classList.add('active');
+      $('authTabLogin').classList.remove('active');
+      $('authSubmitBtn').textContent = 'Зарегистрироваться';
+    });
+
+    $('authSubmitBtn').addEventListener('click', async () => {
+      const email = $('authEmail').value.trim();
+      const password = $('authPassword').value;
+      const msg = $('authMsg');
+      msg.className = 'auth-msg';
+      if (!email || !password) { msg.className = 'auth-msg error'; msg.textContent = 'Заполни email и пароль.'; return; }
+      $('authSubmitBtn').disabled = true;
+      try {
+        if (authMode === 'signup') {
+          const data = await window.auth.signUp(email, password);
+          if (!data.session) {
+            msg.className = 'auth-msg ok';
+            msg.textContent = 'Проверь почту и подтверди email, затем войди.';
+            $('authSubmitBtn').disabled = false;
+            return;
+          }
+        } else {
+          await window.auth.signIn(email, password);
+        }
+        await routeAfterAuth();
+      } catch (err) {
+        msg.className = 'auth-msg error';
+        msg.textContent = err.message || 'Что-то пошло не так, попробуй ещё раз.';
+      } finally {
+        $('authSubmitBtn').disabled = false;
+      }
+    });
+    $('authPassword').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') $('authSubmitBtn').click();
+    });
+
+    // ---- Onboarding wiring ----
+    function computeTargets() {
+      const sex = $('onbSex').value;
+      const age = Number($('onbAge').value) || 25;
+      const height = Number($('onbHeight').value) || 170;
+      const weight = Number($('onbWeight').value) || 70;
+      const goalWeight = Number($('onbGoalWeight').value) || weight;
+      const activity = Number($('onbActivity').value) || 1.375;
+      // Mifflin-St Jeor
+      const bmr = sex === 'male'
+        ? 10 * weight + 6.25 * height - 5 * age + 5
+        : 10 * weight + 6.25 * height - 5 * age - 161;
+      const tdee = bmr * activity;
+      const wantsLoss = goalWeight < weight;
+      const calories = Math.round(wantsLoss ? Math.max(1300, tdee - 500) : tdee + (goalWeight > weight ? 300 : 0));
+      const protein = Math.round(weight * 2);
+      const fat = Math.round(weight * 0.8);
+      const carbs = Math.max(50, Math.round((calories - protein * 4 - fat * 9) / 4));
+      return { calories, protein, fat, carbs, weight, goalWeight, bmr: Math.round(bmr), tdee: Math.round(tdee) };
+    }
+
+    function updateOnboardPreview() {
+      const t = computeTargets();
+      $('onbComputed').innerHTML =
+        `Базовый обмен: <b>${t.bmr} ккал</b> · С активностью: <b>~${t.tdee} ккал</b><br>` +
+        `Цель дня: <b>${t.calories} ккал</b> · белки <b>${t.protein}г</b> · жиры <b>${t.fat}г</b> · углеводы <b>${t.carbs}г</b>`;
+    }
+    ['onbSex','onbAge','onbHeight','onbWeight','onbGoalWeight','onbActivity'].forEach(id => {
+      $(id).addEventListener('input', updateOnboardPreview);
+      $(id).addEventListener('change', updateOnboardPreview);
+    });
+    updateOnboardPreview();
+
+    $('onbSubmitBtn').addEventListener('click', async () => {
+      $('onbSubmitBtn').disabled = true;
+      $('onbSubmitBtn').textContent = 'Сохраняю...';
+      try {
+        const t = computeTargets();
+        await window.storage.set('foodTarget', JSON.stringify({ calories: t.calories, protein: t.protein, fat: t.fat, carbs: t.carbs }), false);
+        // Seed this week's weigh-in with their starting weight so the
+        // weekly weigh-in gate doesn't immediately block them.
+        const monday = getMondayIso();
+        await window.storage.set('weight:' + monday, String(t.weight), false);
+        showApp();
+        window.startApp();
+      } catch (err) {
+        alert('Не получилось сохранить: ' + (err.message || err));
+        $('onbSubmitBtn').disabled = false;
+        $('onbSubmitBtn').textContent = 'Начать';
+      }
+    });
+
+    function getMondayIso() {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = (day === 0 ? -6 : 1) - day;
+      d.setDate(d.getDate() + diff);
+      return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+    }
+
+    // ---- Routing ----
+    async function hasOnboarded() {
+      try {
+        await window.storage.get('foodTarget', false);
+        return true;
+      } catch (e) {
+        return false; // key not found — brand new account
+      }
+    }
+
+    async function routeAfterAuth() {
+      const onboarded = await hasOnboarded();
+      if (!onboarded) {
+        show('onboardScreen');
+        return;
+      }
+      showApp();
+      window.startApp();
+    }
+
+    // ---- Boot ----
+    (async function boot() {
+      await window.auth.init();
+      const user = window.auth.getUser();
+      if (!user) {
+        show('authScreen');
+        return;
+      }
+      await routeAfterAuth();
+    })();
+
+    document.addEventListener('click', async (e) => {
+      if (e.target && e.target.id === 'logoutBtn') {
+        await window.auth.signOut();
+        location.reload();
+      }
+    });
+  })();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+    });
+  }
+</script>
+</body>
+</html>
