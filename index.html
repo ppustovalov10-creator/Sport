@@ -1939,13 +1939,26 @@ ${promptExtra}
 
   // Retries the analysis once on failure (covers transient parse/network hiccups)
   // before giving up and letting the caller show an error.
+  function isRateLimitError(err) {
+    return /\b429\b|quota/i.test(err && err.message || '');
+  }
+
   async function analyzeFoodWithRetry(promptExtra, imagePart) {
     try {
       return await analyzeFoodPrompt(promptExtra, imagePart);
     } catch (e) {
+      // Retrying a 429 immediately just burns another call against the same
+      // rate-limit window — let it fail straight through instead.
+      if (isRateLimitError(e)) throw e;
       console.warn('First attempt failed, retrying once:', e);
       return await analyzeFoodPrompt(promptExtra, imagePart);
     }
+  }
+
+  function foodErrorMessage(err) {
+    if (err.message === 'NO_API_KEY') return 'Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.';
+    if (isRateLimitError(err)) return 'Бесплатный лимит запросов Gemini на сейчас исчерпан — подожди немного и попробуй снова.';
+    return null; // caller falls back to its own generic message
   }
 
   async function addFoodEntry(result) {
@@ -1973,8 +1986,8 @@ ${promptExtra}
       await addFoodEntry(result);
     } catch (err) {
       console.error(err);
-      const noKey = err.message === 'NO_API_KEY';
-      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${noKey ? 'Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.' : 'Не получилось разобрать фото дважды подряд. Попробуй ещё раз, при хорошем освещении, или опиши текстом выше.'}</div></div>`;
+      const msg = foodErrorMessage(err) || 'Не получилось разобрать фото. Попробуй ещё раз, при хорошем освещении, или опиши текстом выше.';
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${msg}</div></div>`;
     } finally {
       $('loadingBox').classList.add('hidden');
       e.target.value = '';
@@ -2003,6 +2016,12 @@ ${promptExtra}
         verdictParts.push(verdictHtml(entry));
       } catch (err) {
         console.error(err);
+        // A rate-limit hit on one line will hit on every remaining line too —
+        // stop burning requests and show one clear message instead of N.
+        if (isRateLimitError(err)) {
+          verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">${foodErrorMessage(err)}</div></div>`);
+          break;
+        }
         verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">Не разобралось: «${escapeHtml(line)}» — попробуй переформулировать отдельно.</div></div>`);
       }
     }
