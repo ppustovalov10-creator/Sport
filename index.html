@@ -299,10 +299,6 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .date-picker-row.past { border-color: var(--orange); }
 .date-picker-note { font-size: 11px; color: var(--orange); margin: -8px 0 14px; padding: 0 2px; }
 
-.quick-chips { display:flex; flex-wrap:wrap; gap: 8px; margin-bottom: 12px; }
-.quick-chip { background: var(--surface); border:1px solid var(--line); color: var(--text); font-size: 12px; font-weight:600; padding: 9px 12px; border-radius: 10px; cursor:pointer; }
-.quick-chip:active { transform: scale(.97); }
-
 .text-add-row { display:flex; flex-direction:column; gap: 8px; margin-bottom: 10px; }
 .text-add-row textarea { width:100%; background: var(--surface); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family:'Inter',sans-serif; resize: vertical; min-height: 64px; line-height: 1.5; box-sizing: border-box; }
 .text-add-row textarea:focus { outline:none; border-color: var(--accent); }
@@ -313,18 +309,6 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 
 .photo-toggle-btn { width:100%; background:none; border:none; color: var(--text-dim); font-size: 11px; padding: 6px; cursor:pointer; text-align:center; margin-bottom: 4px; }
 .photo-toggle-btn:hover { color: var(--accent); }
-.manual-form { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-.manual-form input { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 9px; padding: 10px 11px; font-size: 14px; box-sizing:border-box; margin-bottom: 8px; }
-.manual-form-row { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
-.manual-form-row input { margin-bottom: 0; text-align:center; font-family:'JetBrains Mono', monospace; font-size: 13px; padding: 9px 4px; }
-.manual-form-labels { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 4px; }
-.manual-form-labels span { text-align:center; font-size: 10px; color: var(--text-dim); }
-.manual-form button { width:100%; background: var(--good); border:none; color:#0d1a16; border-radius: 10px; padding: 11px; cursor:pointer; font-weight:700; font-size: 13px; }
-.manual-verdict-row { display:flex; gap: 6px; margin-bottom: 10px; }
-.manual-verdict-row button { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text-dim); border-radius: 8px; padding: 8px 4px; font-size: 11px; font-weight:600; cursor:pointer; }
-.manual-verdict-row button.active.good { background: var(--good); border-color: var(--good); color:#0d1a16; }
-.manual-verdict-row button.active.neutral { background: var(--orange); border-color: var(--orange); color:#2a1a05; }
-.manual-verdict-row button.active.bad { background: var(--bad); border-color: var(--bad); color:#fff; }
 .upload-zone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 6px; border: 2px dashed var(--line); border-radius: 14px; padding: 22px 16px; cursor:pointer; background: var(--surface); margin-bottom: 8px; text-align:center; }
 .upload-zone:hover { border-color: var(--text-dim); }
 .upload-icon { font-size: 22px; opacity:.6; }
@@ -645,24 +629,24 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 
       <div class="section-title">Добавить приём пищи</div>
 
-      <div class="manual-form">
-        <input type="text" id="manualName" placeholder="Название блюда">
-        <div class="manual-form-labels"><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углев.</span></div>
-        <div class="manual-form-row">
-          <input type="number" id="manualKcal" inputmode="decimal">
-          <input type="number" id="manualProtein" inputmode="decimal">
-          <input type="number" id="manualFat" inputmode="decimal">
-          <input type="number" id="manualCarbs" inputmode="decimal">
+      <div class="text-add-row">
+        <textarea id="textFoodInput" placeholder="Опиши, что съел. Можно сразу несколько блюд — каждое с новой строки, разберу и добавлю всё по отдельности."></textarea>
+        <div class="text-add-controls">
+          <label class="cheat-pill"><input type="checkbox" id="cheatToggle"> Чит-мил</label>
+          <button id="textFoodBtn">Оценить и добавить</button>
         </div>
-        <div class="manual-verdict-row">
-          <button data-v="Хорошо" class="active good">Хорошо</button>
-          <button data-v="Средне">Средне</button>
-          <button data-v="Плохо">Плохо</button>
-        </div>
-        <label class="cheat-pill" style="margin-bottom:10px; display:inline-flex;"><input type="checkbox" id="cheatToggle"> Чит-мил</label>
-        <button id="manualAddBtn">+ Добавить</button>
       </div>
 
+      <button class="photo-toggle-btn" id="photoToggleBtn">📷 Или добавь по фото</button>
+      <label class="upload-zone hidden" id="uploadZone">
+        <input type="file" accept="image/*" id="photoInput" hidden>
+        <span class="upload-icon">📷</span>
+        <span class="upload-hint">Нажми и выбери фото блюда</span>
+      </label>
+
+      <div id="loadingBox" class="analysis-loading hidden">
+        <span class="wk-spinner" style="width:14px;height:14px;"></span> Разбираю блюдо...
+      </div>
       <div id="verdictBox"></div>
 
       <div class="food-list-head">
@@ -1905,44 +1889,129 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     if (!isPast) renderPatternBanner();
   }
 
-  // ===== Manual food entry — free, no AI/API key needed =====
-  let manualVerdict = 'Хорошо';
-  document.querySelectorAll('.manual-verdict-row button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      manualVerdict = btn.dataset.v;
-      const cls = manualVerdict === 'Хорошо' ? 'good' : manualVerdict === 'Плохо' ? 'bad' : 'neutral';
-      document.querySelectorAll('.manual-verdict-row button').forEach(b => {
-        b.classList.remove('active','good','neutral','bad');
-      });
-      btn.classList.add('active', cls);
+  // ===== AI food entry — text description or photo, parsed via Gemini =====
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = () => reject(new Error('read failed'));
+      r.readAsDataURL(file);
     });
-  });
+  }
 
-  $('manualAddBtn').addEventListener('click', async () => {
-    const name = $('manualName').value.trim();
-    const kcal = Number($('manualKcal').value) || 0;
-    if (!name || kcal <= 0) {
-      $('manualName').style.borderColor = !name ? 'var(--bad)' : '';
-      $('manualKcal').style.borderColor = kcal <= 0 ? 'var(--bad)' : '';
-      return;
+  // Robust JSON extraction: strips markdown fences, then pulls out the
+  // {...} substring even if the model added stray text around it, so a
+  // single extra character doesn't fail the whole request.
+  function parseFoodJson(text) {
+    let clean = text.replace(/```json|```/g, '').trim();
+    try {
+      return JSON.parse(clean);
+    } catch (e) {
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        return JSON.parse(clean.slice(start, end + 1)); // let this throw if still invalid — caller handles it
+      }
+      throw e;
     }
-    const entry = buildFoodEntry({
-      name,
-      calories: kcal,
-      protein: Number($('manualProtein').value) || 0,
-      fat: Number($('manualFat').value) || 0,
-      carbs: Number($('manualCarbs').value) || 0,
-      verdict: manualVerdict,
-      comment: ''
-    });
+  }
+
+  async function analyzeFoodPrompt(promptExtra, imagePart) {
+    if (!window.apiConfig.hasKey()) throw new Error('NO_API_KEY');
+    const t = sumTodayFood();
+    const prompt = `Ты — придирчивый, но справедливый персональный тренер по питанию. Клиент худеет.
+Его дневная цель: ${FOOD_TARGET.calories} ккал, белки ${FOOD_TARGET.protein}г, жиры ${FOOD_TARGET.fat}г, углеводы ${FOOD_TARGET.carbs}г.
+Уже съедено сегодня: ${Math.round(t.calories)} ккал, белки ${Math.round(t.protein)}г, жиры ${Math.round(t.fat)}г, углеводы ${Math.round(t.carbs)}г.
+${promptExtra}
+
+Вердикт ("Хорошо"/"Средне"/"Плохо") ставь в первую очередь за само блюдо — его состав, баланс белка/жира/углеводов, обработку (жареное/сырое, простые сахара и т.д.). Контекст дня (что уже съедено) используй только для комментария и рекомендации, а не для того чтобы занижать вердикт хорошему блюду только из-за того что день пока не идеален.
+
+Ответь СТРОГО в формате JSON и ничем больше — ни до, ни после, без markdown-разметки:
+{"name":"короткое название блюда на русском","calories":число,"protein":число,"fat":число,"carbs":число,"verdict":"Хорошо"|"Средне"|"Плохо","comment":"прямой комментарий тренера на русском, максимум 20 слов, без извинений"}`;
+
+    const parts = imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }];
+    const data = await callGemini(parts, null, null);
+    const text = data.candidates && data.candidates[0] && data.candidates[0].content
+      ? data.candidates[0].content.parts.map(p => p.text || '').join('')
+      : '';
+    return parseFoodJson(text);
+  }
+
+  // Retries the analysis once on failure (covers transient parse/network hiccups)
+  // before giving up and letting the caller show an error.
+  async function analyzeFoodWithRetry(promptExtra, imagePart) {
+    try {
+      return await analyzeFoodPrompt(promptExtra, imagePart);
+    } catch (e) {
+      console.warn('First attempt failed, retrying once:', e);
+      return await analyzeFoodPrompt(promptExtra, imagePart);
+    }
+  }
+
+  async function addFoodEntry(result) {
+    const entry = buildFoodEntry(result);
     todayFood.push(entry);
     await commitFoodEntries();
     $('verdictBox').innerHTML = verdictHtml(entry);
-    ['manualName','manualKcal','manualProtein','manualFat','manualCarbs'].forEach(id => {
-      $(id).value = '';
-      $(id).style.borderColor = '';
-    });
+  }
+
+  $('photoToggleBtn').addEventListener('click', () => {
+    $('uploadZone').classList.toggle('hidden');
   });
+
+  $('photoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $('loadingBox').classList.remove('hidden');
+    $('verdictBox').innerHTML = '';
+    try {
+      const base64 = await fileToBase64(file);
+      const result = await analyzeFoodWithRetry(
+        'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ на порцию, которую видишь.',
+        { inlineData: { mimeType: file.type || 'image/jpeg', data: base64 } }
+      );
+      await addFoodEntry(result);
+    } catch (err) {
+      console.error(err);
+      const noKey = err.message === 'NO_API_KEY';
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${noKey ? 'Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.' : 'Не получилось разобрать фото дважды подряд. Попробуй ещё раз, при хорошем освещении, или опиши текстом выше.'}</div></div>`;
+    } finally {
+      $('loadingBox').classList.add('hidden');
+      e.target.value = '';
+    }
+  });
+
+  $('textFoodBtn').addEventListener('click', async () => {
+    const input = $('textFoodInput');
+    const raw = input.value.trim();
+    if (!raw) return;
+    // Each line is treated as a separate food item — lets you log a whole
+    // day's worth of meals in one paste instead of one entry at a time.
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!window.apiConfig.hasKey()) {
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.</div></div>`;
+      return;
+    }
+    $('loadingBox').classList.remove('hidden');
+    $('verdictBox').innerHTML = '';
+    const verdictParts = [];
+    for (const line of lines) {
+      try {
+        const result = await analyzeFoodWithRetry(`Клиент описал текстом, что съел: "${line}". Оцени примерную калорийность и БЖУ по этому описанию.`, null);
+        const entry = buildFoodEntry(result);
+        todayFood.push(entry);
+        verdictParts.push(verdictHtml(entry));
+      } catch (err) {
+        console.error(err);
+        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">Не разобралось: «${escapeHtml(line)}» — попробуй переформулировать отдельно.</div></div>`);
+      }
+    }
+    await commitFoodEntries();
+    $('verdictBox').innerHTML = verdictParts.join('');
+    input.value = '';
+    $('loadingBox').classList.add('hidden');
+  });
+  $('textFoodInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('textFoodBtn').click(); });
 
   function verdictHtml(entry) {
     const verdictClass = entry.verdict === 'Хорошо' ? 'good' : entry.verdict === 'Плохо' ? 'bad' : 'neutral';
