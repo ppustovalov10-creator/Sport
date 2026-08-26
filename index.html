@@ -1955,10 +1955,13 @@ ${promptExtra}
     }
   }
 
+  // Always surfaces the real cause (same as the coach chat does) instead of
+  // a vague "не разобралось" that reads like a user-input problem when the
+  // actual cause could be a quota, network, or malformed-response issue.
   function foodErrorMessage(err) {
     if (err.message === 'NO_API_KEY') return 'Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.';
     if (isRateLimitError(err)) return 'Бесплатный лимит запросов Gemini на сейчас исчерпан — подожди немного и попробуй снова.';
-    return null; // caller falls back to its own generic message
+    return 'Ошибка: ' + (err && err.message ? err.message : 'не удалось разобрать ответ ИИ');
   }
 
   async function addFoodEntry(result) {
@@ -1986,8 +1989,7 @@ ${promptExtra}
       await addFoodEntry(result);
     } catch (err) {
       console.error(err);
-      const msg = foodErrorMessage(err) || 'Не получилось разобрать фото. Попробуй ещё раз, при хорошем освещении, или опиши текстом выше.';
-      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${msg}</div></div>`;
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${foodErrorMessage(err)}</div></div>`;
     } finally {
       $('loadingBox').classList.add('hidden');
       e.target.value = '';
@@ -2018,11 +2020,8 @@ ${promptExtra}
         console.error(err);
         // A rate-limit hit on one line will hit on every remaining line too —
         // stop burning requests and show one clear message instead of N.
-        if (isRateLimitError(err)) {
-          verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">${foodErrorMessage(err)}</div></div>`);
-          break;
-        }
-        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">Не разобралось: «${escapeHtml(line)}» — попробуй переформулировать отдельно.</div></div>`);
+        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}»: ${foodErrorMessage(err)}</div></div>`);
+        if (isRateLimitError(err)) break;
       }
     }
     await commitFoodEntries();
