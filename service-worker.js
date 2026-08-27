@@ -1,12 +1,11 @@
 // Minimal offline-shell service worker.
 // Caches the app files as a fallback for offline use — API calls still
 // need internet to actually work.
-const CACHE_NAME = 'coach-center-v2';
+const CACHE_NAME = 'coach-center-v3';
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
-  './js/storage-polyfill.js',
   './js/storage-supabase.js',
   './js/api-config.js'
 ];

@@ -49,8 +49,12 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
   --gold: #a97a1f;
   --orange: #c2650f;
 }
-.theme-switcher { position: fixed; bottom: 16px; left: 16px; z-index: 9998; }
-.theme-switcher button { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); border:1px solid var(--line); color: var(--text); font-size: 16px; cursor:pointer; }
+.theme-switcher { position: fixed; bottom: 16px; left: 16px; z-index: 9998; display:flex; align-items:center; gap: 8px; }
+.theme-switcher button.mode-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); border:1px solid var(--line); color: var(--text); font-size: 16px; cursor:pointer; }
+.color-palette { position: absolute; bottom: 48px; left: 0; background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 8px; display:flex; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.color-palette.hidden { display:none; }
+.color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor:pointer; border: 2px solid transparent; }
+.color-swatch.active { border-color: var(--text); }
 
 /* ---- Calendar ---- */
 .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; }
@@ -73,12 +77,7 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .cal-cell.cal-good { background: rgba(47,191,143,0.16); color: var(--text); border-color: var(--good); }
 .cal-cell.cal-mid { background: rgba(224,132,46,0.16); color: var(--text); border-color: var(--orange); }
 .cal-cell.cal-bad { background: rgba(226,84,63,0.16); color: var(--text); border-color: var(--bad); }
-.cal-detail { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 16px; }
-.cal-detail-title { font-weight:700; font-size: 14px; margin-bottom: 8px; }
-.cal-detail-macros { font-family:'JetBrains Mono', monospace; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
-.cal-detail-item { font-size: 12px; padding: 6px 0; border-top: 1px solid var(--line); display:flex; justify-content:space-between; gap:8px; }
-.cal-detail-item:first-of-type { border-top:none; }
-.cal-detail-empty { font-size: 12px; color: var(--text-dim); text-align:center; padding: 8px 0; }
+#calTodayBtn { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--accent); font-weight:700; font-size: 12px; padding: 9px; border-radius: 10px; cursor:pointer; }
 .wk-app * { box-sizing: border-box; }
 .wk-inner { max-width: 560px; margin: 0 auto; padding: 20px 18px 44px; }
 
@@ -292,12 +291,16 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .pattern-banner { display:flex; gap:8px; align-items:flex-start; background: rgba(226,84,63,0.1); border:1px solid var(--bad); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; }
 .pattern-banner b { color: var(--bad); }
 
-.date-picker-row { display:flex; align-items:center; gap: 8px; margin-bottom: 14px; background: var(--surface); border:1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
-.date-picker-label { font-size: 12px; color: var(--text-dim); font-weight:600; flex-shrink:0; }
-.date-picker-row input[type="date"] { flex:1; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 8px; font-size: 12px; font-family:'JetBrains Mono', monospace; }
-.date-picker-row button { background: var(--accent); border:none; color:#0d1a2e; font-weight:700; border-radius: 8px; padding: 6px 12px; cursor:pointer; font-size: 11px; flex-shrink:0; }
-.date-picker-row.past { border-color: var(--orange); }
-.date-picker-note { font-size: 11px; color: var(--orange); margin: -8px 0 14px; padding: 0 2px; }
+.date-picker-collapsed { display:flex; align-items:center; justify-content:space-between; gap: 8px; margin-bottom: 10px; background: var(--surface); border:1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.date-picker-collapsed span { font-size: 12px; color: var(--text); font-weight:600; }
+.date-picker-collapsed.past { border-color: var(--orange); }
+.date-picker-collapsed button { background: var(--accent); border:none; color:#0d1a2e; font-weight:700; border-radius: 8px; padding: 7px 12px; cursor:pointer; font-size: 12px; flex-shrink:0; }
+.date-picker-note { font-size: 11px; color: var(--orange); margin: -4px 0 14px; padding: 0 2px; }
+.cal-wrap { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+
+.quick-chips { display:flex; flex-wrap:wrap; gap: 8px; margin-bottom: 12px; }
+.quick-chip { background: var(--surface); border:1px solid var(--line); color: var(--text); font-size: 12px; font-weight:600; padding: 9px 12px; border-radius: 10px; cursor:pointer; }
+.quick-chip:active { transform: scale(.97); }
 
 .text-add-row { display:flex; flex-direction:column; gap: 8px; margin-bottom: 10px; }
 .text-add-row textarea { width:100%; background: var(--surface); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family:'Inter',sans-serif; resize: vertical; min-height: 64px; line-height: 1.5; box-sizing: border-box; }
@@ -465,7 +468,18 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 </div>
 
 <div class="wk-app hidden">
-  <div class="theme-switcher"><button id="themeToggleBtn" title="Сменить тему">🌗</button></div>
+  <div class="theme-switcher">
+    <button class="mode-btn" id="themeToggleBtn" title="Сменить тему">🌗</button>
+    <button class="mode-btn" id="paletteToggleBtn" title="Цвет акцента">🎨</button>
+    <div class="color-palette hidden" id="colorPalette">
+      <div class="color-swatch" data-color="#2563eb" style="background:#2563eb"></div>
+      <div class="color-swatch" data-color="#ec4899" style="background:#ec4899"></div>
+      <div class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6"></div>
+      <div class="color-swatch" data-color="#16a34a" style="background:#16a34a"></div>
+      <div class="color-swatch" data-color="#ea580c" style="background:#ea580c"></div>
+      <div class="color-swatch" data-color="#0d9488" style="background:#0d9488"></div>
+    </div>
+  </div>
   <div id="wkLoading" class="wk-loading">
     <div class="wk-spinner"></div>
     <p>Загружаю историю тренировок...</p>
@@ -511,48 +525,31 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     <div class="module-tabs" id="moduleTabs">
       <div class="module-tab active" data-module="food">Питание</div>
       <div class="module-tab" data-module="workout">Тренировки</div>
-      <div class="module-tab" data-module="coach">Тренер</div>
-      <div class="module-tab" data-module="calendar">Календарь</div>
-    </div>
-
-    <!-- ================= COACH CHAT MODULE ================= -->
-    <div id="moduleCoach" class="hidden">
-      <div class="coach-chat-wrap">
-        <div class="coach-chat-log" id="coachChatLog"></div>
-        <div class="coach-chat-input-row">
-          <textarea id="coachChatInput" placeholder="Спроси тренера..."></textarea>
-          <button id="coachChatSend">➤</button>
-        </div>
-        <div class="coach-chat-note">Нужен API-ключ 🔑 для ответов тренера.</div>
-      </div>
-    </div>
-
-    <!-- ================= CALENDAR MODULE ================= -->
-    <div id="moduleCalendar" class="hidden">
-      <div class="cal-header">
-        <button id="calPrevBtn">‹</button>
-        <div class="cal-title" id="calTitle">Август 2026</div>
-        <button id="calNextBtn">›</button>
-      </div>
-      <div class="cal-legend">
-        <span><i class="cal-dot good"></i>В цель</span>
-        <span><i class="cal-dot mid"></i>Отклонение</span>
-        <span><i class="cal-dot bad"></i>Сильно мимо</span>
-        <span><i class="cal-dot empty"></i>Нет записей</span>
-      </div>
-      <div class="cal-weekdays">
-        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
-      </div>
-      <div class="cal-grid" id="calGrid"></div>
-      <div class="cal-detail hidden" id="calDetail"></div>
     </div>
 
     <!-- ================= FOOD MODULE ================= -->
     <div id="moduleFood">
-      <div class="date-picker-row" id="foodDatePickerRow">
-        <span class="date-picker-label">Запись за:</span>
-        <input type="date" id="foodDateInput">
-        <button id="foodDateTodayBtn">Сегодня</button>
+      <div class="date-picker-collapsed" id="dateCollapsedRow">
+        <span id="dateCollapsedLabel">Запись за: сегодня</span>
+        <button id="dateExpandBtn">📅 Календарь</button>
+      </div>
+      <div class="cal-wrap hidden" id="calWrap">
+        <div class="cal-header">
+          <button id="calPrevBtn">‹</button>
+          <div class="cal-title" id="calTitle">Август 2026</div>
+          <button id="calNextBtn">›</button>
+        </div>
+        <div class="cal-legend">
+          <span><i class="cal-dot good"></i>В цель</span>
+          <span><i class="cal-dot mid"></i>Отклонение</span>
+          <span><i class="cal-dot bad"></i>Сильно мимо</span>
+          <span><i class="cal-dot empty"></i>Нет записей</span>
+        </div>
+        <div class="cal-weekdays">
+          <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <button id="calTodayBtn">Сегодня</button>
       </div>
       <div class="date-picker-note hidden" id="foodDateNote"></div>
       <div id="patternBanner"></div>
@@ -763,6 +760,18 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
   function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+  // Fast path for lookups where "missing" is the normal case (e.g. a
+  // calendar day with no food logged) — no retries, no artificial delay,
+  // unlike safeStorageGet which assumes a miss might be a transient failure.
+  async function fastStorageGet(key) {
+    try {
+      const r = await window.storage.get(key, false);
+      return (r && r.value) ? r.value : null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   async function safeStorageGet(key, retries) {
     retries = retries === undefined ? 2 : retries;
@@ -1456,99 +1465,7 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     svg.innerHTML = `<path d="${path}" fill="none" stroke="#4f8ff7" stroke-width="2" />${dots}`;
   }
 
-  // ===================== AI COACH CHAT =====================
-  let chatHistory = [];
-
-  async function loadChatHistory() {
-    const val = await safeStorageGet('coachChatHistory');
-    chatHistory = val ? JSON.parse(val) : [];
-  }
-  async function saveChatHistory() {
-    if (chatHistory.length > 60) chatHistory = chatHistory.slice(-60);
-    await safeStorageSet('coachChatHistory', JSON.stringify(chatHistory));
-  }
-
-  function chatBubbleHtml(role, text, isError) {
-    const cls = role === 'user' ? 'coach-msg-user' : 'coach-msg-bot';
-    const bubbleCls = isError ? 'coach-msg-bubble error' : 'coach-msg-bubble';
-    return `<div class="coach-msg ${cls}"><div class="${bubbleCls}">${escapeHtml(text)}</div></div>`;
-  }
-
-  function renderChatLog() {
-    const log = $('coachChatLog');
-    if (!chatHistory.length) {
-      log.innerHTML = chatBubbleHtml('assistant', 'Привет. Я вижу твои калории, вес и тренировки за сегодня — спрашивай что угодно, отвечу по делу, а не общими фразами.');
-      return;
-    }
-    log.innerHTML = chatHistory.map(m => chatBubbleHtml(m.role, m.content)).join('');
-    log.scrollTop = log.scrollHeight;
-  }
-
-  async function buildCoachSystemPrompt() {
-    const t = sumTodayFood();
-    const wk = fmtDMY(getMonday(new Date()));
-    const weight = weightHistory[wk];
-    const w = allWorkouts[todayStr()];
-    const workoutInfo = w
-      ? `Тренировка сегодня (${getDayLabel(w.dayType)}): ${w.exercises.map(e => `${e.name} ${fmtSets(e.sets)}`).join('; ')}`
-      : 'Тренировки сегодня ещё не было записано.';
-    return `Ты — придирчивый, но справедливый персональный тренер по питанию и тренировкам. Отвечай прямо и по делу, без извинений и лишней воды, на русском языке. Отвечай коротко (2-5 предложений), если не просят подробнее.
-Текущие данные клиента:
-- Дневная цель: ${FOOD_TARGET.calories} ккал, белки ${FOOD_TARGET.protein}г, жиры ${FOOD_TARGET.fat}г, углеводы ${FOOD_TARGET.carbs}г
-- Съедено сегодня: ${Math.round(t.calories)} ккал, белки ${Math.round(t.protein)}г, жиры ${Math.round(t.fat)}г, углеводы ${Math.round(t.carbs)}г
-- Вес на текущей неделе: ${weight !== undefined ? weight + ' кг' : 'ещё не внесён'}
-- ${workoutInfo}
-Используй эти данные в ответах, когда это уместно к вопросу клиента.`;
-  }
-
-  async function callCoachAPI(userText) {
-    if (!window.apiConfig.hasKey()) throw new Error('NO_API_KEY');
-    const system = await buildCoachSystemPrompt();
-    // Gemini uses "model" instead of "assistant" for the AI's own turns.
-    const priorTurns = chatHistory.slice(-20).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-    const data = await callGemini([{ text: userText }], system, priorTurns);
-    return data.candidates && data.candidates[0] && data.candidates[0].content
-      ? data.candidates[0].content.parts.map(p => p.text || '').join('')
-      : '';
-  }
-
-  async function sendCoachMessage() {
-    const input = $('coachChatInput');
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    $('coachChatSend').disabled = true;
-    chatHistory.push({ role: 'user', content: text });
-    renderChatLog();
-    const log = $('coachChatLog');
-    log.insertAdjacentHTML('beforeend', `<div class="coach-msg coach-msg-bot" id="coachTypingIndicator"><div class="coach-msg-bubble"><div class="coach-typing"><span></span><span></span><span></span></div></div></div>`);
-    log.scrollTop = log.scrollHeight;
-    try {
-      const reply = await callCoachAPI(text);
-      chatHistory.push({ role: 'assistant', content: reply });
-      await saveChatHistory();
-      renderChatLog();
-    } catch (err) {
-      console.error(err);
-      const reason = err.message === 'NO_API_KEY' ? 'Нужен API-ключ — нажми 🔑 внизу справа.' : ('Ошибка: ' + (err.message || 'сеть недоступна'));
-      const indicator = document.getElementById('coachTypingIndicator');
-      if (indicator) indicator.remove();
-      $('coachChatLog').insertAdjacentHTML('beforeend', chatBubbleHtml('assistant', reason, true));
-      $('coachChatLog').scrollTop = $('coachChatLog').scrollHeight;
-    } finally {
-      $('coachChatSend').disabled = false;
-    }
-  }
-
-  $('coachChatSend').addEventListener('click', sendCoachMessage);
-  $('coachChatInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCoachMessage(); }
-  });
-
-  // ===== Theme (light/dark) — personal preference, saved per account =====
+  // ===== Theme (light/dark + accent color) — personal preference, saved per account =====
   async function loadTheme() {
     let theme = 'dark';
     try {
@@ -1556,10 +1473,23 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
       if (val === 'light' || val === 'dark') theme = val;
     } catch (e) { /* default to dark */ }
     applyTheme(theme);
+
+    let color = '#2563eb';
+    try {
+      const val = await safeStorageGet('accentColor');
+      if (val) color = val;
+    } catch (e) { /* default blue */ }
+    applyAccentColor(color);
   }
   function applyTheme(theme) {
     document.querySelector('.wk-app').classList.toggle('theme-light', theme === 'light');
     document.body.style.background = theme === 'light' ? '#f7f7f5' : '#16171a';
+  }
+  function applyAccentColor(hex) {
+    document.querySelector('.wk-app').style.setProperty('--accent', hex);
+    document.querySelectorAll('.color-swatch').forEach(sw => {
+      sw.classList.toggle('active', sw.dataset.color.toLowerCase() === hex.toLowerCase());
+    });
   }
   $('themeToggleBtn').addEventListener('click', async () => {
     const isLight = document.querySelector('.wk-app').classList.contains('theme-light');
@@ -1567,11 +1497,21 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     applyTheme(next);
     await safeStorageSet('theme', next);
   });
+  $('paletteToggleBtn').addEventListener('click', () => {
+    $('colorPalette').classList.toggle('hidden');
+  });
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', async () => {
+      const hex = sw.dataset.color;
+      applyAccentColor(hex);
+      await safeStorageSet('accentColor', hex);
+      $('colorPalette').classList.add('hidden');
+    });
+  });
 
-  // ===================== CALENDAR MODULE =====================
+  // ===================== CALENDAR MODULE (embedded in Питание) =====================
   let calYear = new Date().getFullYear();
   let calMonth = new Date().getMonth(); // 0-11
-  let calSelectedDate = null;
   const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
   function dmyFromYMD(y, m, d) {
@@ -1591,14 +1531,15 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
   async function renderCalendar() {
     $('calTitle').textContent = MONTH_NAMES[calMonth] + ' ' + calYear;
     const firstOfMonth = new Date(calYear, calMonth, 1);
-    // Monday-first offset (getDay: 0=Sun..6=Sat)
-    const leadingBlank = (firstOfMonth.getDay() + 6) % 7;
+    const leadingBlank = (firstOfMonth.getDay() + 6) % 7; // Monday-first offset
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
     const dateStrs = [];
     for (let d = 1; d <= daysInMonth; d++) dateStrs.push(dmyFromYMD(calYear, calMonth, d));
 
-    const rawVals = await runLimited(dateStrs, ds => safeStorageGet('food:' + ds), 4);
+    // fastStorageGet (no retries) — a missing day is the normal case here,
+    // not a transient failure, so retrying it was what made this slow.
+    const rawVals = await runLimited(dateStrs, ds => fastStorageGet('food:' + ds), 6);
     const dayTotalsMap = {};
     dateStrs.forEach((ds, i) => {
       if (!rawVals[i]) { dayTotalsMap[ds] = null; return; }
@@ -1606,11 +1547,8 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
         const entries = JSON.parse(rawVals[i]);
         dayTotalsMap[ds] = entries.reduce((acc, e) => {
           acc.calories += Number(e.calories) || 0;
-          acc.protein += Number(e.protein) || 0;
-          acc.fat += Number(e.fat) || 0;
-          acc.carbs += Number(e.carbs) || 0;
           return acc;
-        }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+        }, { calories: 0 });
       } catch (e) { dayTotalsMap[ds] = null; }
     });
 
@@ -1621,50 +1559,43 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     dateStrs.forEach((ds, i) => {
       const quality = dayQuality(dayTotalsMap[ds]);
       const isToday = ds === todayDs;
-      const isSelected = ds === calSelectedDate;
+      const isSelected = ds === selectedFoodDate;
       html += `<div class="cal-cell cal-${quality}${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-date="${ds}">${i + 1}</div>`;
     });
     grid.innerHTML = html;
 
     grid.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
-      cell.addEventListener('click', () => {
-        calSelectedDate = cell.dataset.date;
-        renderCalendarDetail(dayTotalsMap[calSelectedDate], rawVals[dateStrs.indexOf(calSelectedDate)]);
-        grid.querySelectorAll('.cal-cell').forEach(c => c.classList.toggle('selected', c.dataset.date === calSelectedDate));
+      cell.addEventListener('click', async () => {
+        selectedFoodDate = cell.dataset.date;
+        $('calWrap').classList.add('hidden');
+        await refreshFoodDateView();
+        grid.querySelectorAll('.cal-cell').forEach(c => c.classList.toggle('selected', c.dataset.date === selectedFoodDate));
       });
     });
-  }
-
-  function renderCalendarDetail(totals, rawEntries) {
-    const box = $('calDetail');
-    box.classList.remove('hidden');
-    const dow = parseDate(calSelectedDate).toLocaleDateString('ru-RU', { weekday: 'long' });
-    let html = `<div class="cal-detail-title">${calSelectedDate.slice(0,5)} (${dow})</div>`;
-    if (!totals) {
-      html += `<div class="cal-detail-empty">Нет записей за этот день</div>`;
-    } else {
-      html += `<div class="cal-detail-macros">${Math.round(totals.calories)} / ${FOOD_TARGET.calories} ккал · Б ${Math.round(totals.protein)}г · Ж ${Math.round(totals.fat)}г · У ${Math.round(totals.carbs)}г</div>`;
-      try {
-        const entries = JSON.parse(rawEntries);
-        html += entries.map(e => `<div class="cal-detail-item"><span>${escapeHtml(e.name)}</span><span>${Math.round(e.calories)} ккал</span></div>`).join('');
-      } catch (e) { /* skip item list if unparsable */ }
-    }
-    box.innerHTML = html;
   }
 
   $('calPrevBtn').addEventListener('click', () => {
     calMonth--;
     if (calMonth < 0) { calMonth = 11; calYear--; }
-    calSelectedDate = null;
-    $('calDetail').classList.add('hidden');
     renderCalendar();
   });
   $('calNextBtn').addEventListener('click', () => {
     calMonth++;
     if (calMonth > 11) { calMonth = 0; calYear++; }
-    calSelectedDate = null;
-    $('calDetail').classList.add('hidden');
     renderCalendar();
+  });
+  $('calTodayBtn').addEventListener('click', async () => {
+    selectedFoodDate = todayStr();
+    calYear = new Date().getFullYear();
+    calMonth = new Date().getMonth();
+    $('calWrap').classList.add('hidden');
+    await refreshFoodDateView();
+  });
+  $('dateExpandBtn').addEventListener('click', () => {
+    const wrap = $('calWrap');
+    const willShow = wrap.classList.contains('hidden');
+    wrap.classList.toggle('hidden');
+    if (willShow) renderCalendar();
   });
 
   async function proceedToMain() {
@@ -1677,8 +1608,6 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     renderWeightTrend();
     await renderGuidelineBadge();
     await setupFoodModule();
-    await loadChatHistory();
-    renderChatLog();
     showMain();
   }
 
@@ -1704,32 +1633,16 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
       document.querySelectorAll('.module-tab').forEach(t => t.classList.toggle('active', t === tab));
       $('moduleFood').classList.toggle('hidden', currentModule !== 'food');
       $('moduleWorkout').classList.toggle('hidden', currentModule !== 'workout');
-      $('moduleCoach').classList.toggle('hidden', currentModule !== 'coach');
-      $('moduleCalendar').classList.toggle('hidden', currentModule !== 'calendar');
-      if (currentModule === 'coach') {
-        const log = $('coachChatLog');
-        log.scrollTop = log.scrollHeight;
-      }
-      if (currentModule === 'calendar') {
-        renderCalendar();
-      }
     });
-  });
-
-  $('foodDateInput').addEventListener('change', async (e) => {
-    if (!e.target.value) return;
-    selectedFoodDate = isoToDmy(e.target.value);
-    await refreshFoodDateView();
-  });
-  $('foodDateTodayBtn').addEventListener('click', async () => {
-    selectedFoodDate = todayStr();
-    $('foodDateInput').value = dmyToIso(selectedFoodDate);
-    await refreshFoodDateView();
   });
 
   async function refreshFoodDateView() {
     const isPast = selectedFoodDate !== todayStr();
-    $('foodDatePickerRow').classList.toggle('past', isPast);
+    $('dateCollapsedRow').classList.toggle('past', isPast);
+    const dow = parseDate(selectedFoodDate).toLocaleDateString('ru-RU', { weekday: 'short' });
+    $('dateCollapsedLabel').textContent = isPast
+      ? 'Запись за: ' + selectedFoodDate.slice(0,5) + ' (' + dow + ')'
+      : 'Запись за: сегодня';
     const note = $('foodDateNote');
     if (isPast) {
       note.textContent = '⚠️ Редактируешь запись за прошедший день — дашборд ниже показывает именно этот день, не сегодняшний.';
@@ -1889,7 +1802,7 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     if (!isPast) renderPatternBanner();
   }
 
-  // ===== AI food entry — text description or photo, parsed via Gemini =====
+  // ===== AI food analysis (Gemini) — photo and text =====
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -1899,25 +1812,10 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     });
   }
 
-  // Robust JSON extraction: strips markdown fences, then pulls out the
-  // {...} substring even if the model added stray text around it, so a
-  // single extra character doesn't fail the whole request.
-  function parseFoodJson(text) {
-    let clean = text.replace(/```json|```/g, '').trim();
-    try {
-      return JSON.parse(clean);
-    } catch (e) {
-      const start = clean.indexOf('{');
-      const end = clean.lastIndexOf('}');
-      if (start !== -1 && end !== -1 && end > start) {
-        return JSON.parse(clean.slice(start, end + 1)); // let this throw if still invalid — caller handles it
-      }
-      throw e;
+  async function analyzeFoodPrompt(promptExtra, imageContent) {
+    if (!window.apiConfig.hasKey()) {
+      throw new Error('NO_API_KEY');
     }
-  }
-
-  async function analyzeFoodPrompt(promptExtra, imagePart) {
-    if (!window.apiConfig.hasKey()) throw new Error('NO_API_KEY');
     const t = sumTodayFood();
     const prompt = `Ты — придирчивый, но справедливый персональный тренер по питанию. Клиент худеет.
 Его дневная цель: ${FOOD_TARGET.calories} ккал, белки ${FOOD_TARGET.protein}г, жиры ${FOOD_TARGET.fat}г, углеводы ${FOOD_TARGET.carbs}г.
@@ -1929,51 +1827,46 @@ ${promptExtra}
 Ответь СТРОГО в формате JSON и ничем больше — ни до, ни после, без markdown-разметки:
 {"name":"короткое название блюда на русском","calories":число,"protein":число,"fat":число,"carbs":число,"verdict":"Хорошо"|"Средне"|"Плохо","comment":"прямой комментарий тренера на русском, максимум 20 слов, без извинений"}`;
 
-    const parts = imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }];
-    const data = await callGemini(parts, null, null);
+    const parts = imageContent
+      ? [{ inline_data: { mime_type: imageContent.media_type, data: imageContent.data } }, { text: prompt }]
+      : [{ text: prompt }];
+
+    const data = await callGemini(parts);
     const text = data.candidates && data.candidates[0] && data.candidates[0].content
       ? data.candidates[0].content.parts.map(p => p.text || '').join('')
       : '';
     return parseFoodJson(text);
   }
 
-  // Retries the analysis once on failure (covers transient parse/network hiccups)
-  // before giving up and letting the caller show an error.
-  function isRateLimitError(err) {
-    return /\b429\b|quota/i.test(err && err.message || '');
-  }
-
-  async function analyzeFoodWithRetry(promptExtra, imagePart) {
+  function parseFoodJson(text) {
+    let clean = text.replace(/```json|```/g, '').trim();
     try {
-      return await analyzeFoodPrompt(promptExtra, imagePart);
+      return JSON.parse(clean);
     } catch (e) {
-      // Retrying a 429 immediately just burns another call against the same
-      // rate-limit window — let it fail straight through instead.
-      if (isRateLimitError(e)) throw e;
-      console.warn('First attempt failed, retrying once:', e);
-      return await analyzeFoodPrompt(promptExtra, imagePart);
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        return JSON.parse(clean.slice(start, end + 1));
+      }
+      throw e;
     }
   }
 
-  // Always surfaces the real cause (same as the coach chat does) instead of
-  // a vague "не разобралось" that reads like a user-input problem when the
-  // actual cause could be a quota, network, or malformed-response issue.
-  function foodErrorMessage(err) {
-    if (err.message === 'NO_API_KEY') return 'Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.';
-    if (isRateLimitError(err)) return 'Бесплатный лимит запросов Gemini на сейчас исчерпан — подожди немного и попробуй снова.';
-    return 'Ошибка: ' + (err && err.message ? err.message : 'не удалось разобрать ответ ИИ');
+  async function analyzeFoodWithRetry(promptExtra, imageContent) {
+    try {
+      return await analyzeFoodPrompt(promptExtra, imageContent);
+    } catch (e) {
+      console.warn('First attempt failed, retrying once:', e);
+      return await analyzeFoodPrompt(promptExtra, imageContent);
+    }
   }
 
   async function addFoodEntry(result) {
     const entry = buildFoodEntry(result);
     todayFood.push(entry);
     await commitFoodEntries();
-    $('verdictBox').innerHTML = verdictHtml(entry);
+    if (result.comment) $('verdictBox').innerHTML = verdictHtml(entry);
   }
-
-  $('photoToggleBtn').addEventListener('click', () => {
-    $('uploadZone').classList.toggle('hidden');
-  });
 
   $('photoInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -1984,27 +1877,34 @@ ${promptExtra}
       const base64 = await fileToBase64(file);
       const result = await analyzeFoodWithRetry(
         'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ на порцию, которую видишь.',
-        { inlineData: { mimeType: file.type || 'image/jpeg', data: base64 } }
+        { media_type: file.type || 'image/jpeg', data: base64 }
       );
       await addFoodEntry(result);
     } catch (err) {
       console.error(err);
-      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${foodErrorMessage(err)}</div></div>`;
+      const noKey = err.message === 'NO_API_KEY';
+      const reason = noKey ? 'Нужен API-ключ Google Gemini (бесплатно) — нажми 🔑 внизу справа и вставь его.' : ('Не получилось: ' + (err.message || 'неизвестная ошибка сети'));
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${escapeHtml(reason)}</div></div>`;
     } finally {
       $('loadingBox').classList.add('hidden');
       e.target.value = '';
     }
   });
 
+  $('photoToggleBtn').addEventListener('click', () => {
+    const zone = $('uploadZone');
+    const isHidden = zone.classList.contains('hidden');
+    zone.classList.toggle('hidden');
+    $('photoToggleBtn').textContent = isHidden ? '📷 Скрыть фото' : '📷 Или добавь по фото';
+  });
+
   $('textFoodBtn').addEventListener('click', async () => {
     const input = $('textFoodInput');
     const raw = input.value.trim();
     if (!raw) return;
-    // Each line is treated as a separate food item — lets you log a whole
-    // day's worth of meals in one paste instead of one entry at a time.
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
     if (!window.apiConfig.hasKey()) {
-      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Нужен API-ключ Google Gemini — нажми 🔑 внизу справа и вставь его.</div></div>`;
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Нужен API-ключ Google Gemini (бесплатно) — нажми 🔑 внизу справа и вставь его.</div></div>`;
       return;
     }
     $('loadingBox').classList.remove('hidden');
@@ -2018,10 +1918,10 @@ ${promptExtra}
         verdictParts.push(verdictHtml(entry));
       } catch (err) {
         console.error(err);
-        // A rate-limit hit on one line will hit on every remaining line too —
-        // stop burning requests and show one clear message instead of N.
-        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}»: ${foodErrorMessage(err)}</div></div>`);
-        if (isRateLimitError(err)) break;
+        const reason = err && err.message === 'NO_API_KEY'
+          ? 'нет ключа — нажми 🔑'
+          : (err && err.message) || 'неизвестная ошибка сети';
+        verdictParts.push(`<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}» — не получилось (${escapeHtml(reason)}).</div></div>`);
       }
     }
     await commitFoodEntries();
@@ -2388,8 +2288,7 @@ ${promptExtra}
 
   async function setupFoodModule() {
     selectedFoodDate = todayStr();
-    $('foodDateInput').value = dmyToIso(selectedFoodDate);
-    $('foodDateInput').max = dmyToIso(todayStr());
+    $('dateCollapsedLabel').textContent = 'Запись за: сегодня';
     await loadFoodTarget();
     await loadSelectedDateFood();
     await loadWeekFoodTotals();
