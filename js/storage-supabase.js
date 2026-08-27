@@ -15,7 +15,7 @@
  */
 (function () {
   const SUPABASE_URL = 'https://wspjyseycnbfscpvxgrb.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_2Oalxf2zeaRYDRViwLegKQ_sMYGslWh';
+  const SUPABASE_ANON_KEY = 'sb_publishable_2OaIxf2zeaRYDRViwLegKQ_sMYGslWh';
 
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true }

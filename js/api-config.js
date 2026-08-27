@@ -48,7 +48,7 @@
       const current = window.apiConfig.getKey();
       const val = prompt(
         'Вставь свой Google Gemini API-ключ (получить бесплатно, без карты: aistudio.google.com → Get API key).\n' +
-        'Нужен только для чата с тренером (вкладка «Тренер»). Хранится только в этом браузере.',
+        'Нужен для анализа еды и чата с тренером. Хранится только в этом браузере.',
         current
       );
       if (val !== null) window.apiConfig.setKey(val);
