@@ -288,6 +288,11 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .adaptive-body b { color: var(--accent); font-family:'JetBrains Mono', monospace; }
 .adaptive-apply { width: calc(100% - 32px); margin: 0 16px 14px; background: var(--accent); border:none; color:#0d1a2e; font-weight:700; font-size: 12px; padding: 10px; border-radius: 10px; cursor:pointer; }
 
+.goal-edit-btn { background:none; border:none; color: var(--accent); font-size: 12px; cursor:pointer; padding: 2px 6px; margin-left: 2px; vertical-align:middle; }
+.deadline-row { display:flex; gap: 8px; margin: 0 16px 12px; }
+.deadline-row input { flex:1; min-width:0; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px; font-family:'JetBrains Mono', monospace; font-size: 13px; text-align:center; box-sizing:border-box; }
+.deadline-row input:focus { outline:none; border-color: var(--accent); }
+
 .pattern-banner { display:flex; gap:8px; align-items:flex-start; background: rgba(226,84,63,0.1); border:1px solid var(--bad); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; }
 .pattern-banner b { color: var(--bad); }
 
@@ -556,7 +561,7 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 
       <div class="kcal-card">
         <div class="kcal-row">
-          <span class="kcal-label" id="kcalCardLabel">Калории сегодня</span>
+          <span class="kcal-label" id="kcalCardLabel">Калории сегодня <button class="goal-edit-btn" id="editKcalBtn" title="Задать свою цель по калориям">✏️</button></span>
           <span class="kcal-numbers"><span id="kcalConsumed">0</span><span class="of"> / <span id="kcalTarget">1950</span> ккал</span></span>
         </div>
         <div class="track"><div class="track-fill" id="kcalBar"></div></div>
@@ -622,6 +627,22 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
         </button>
         <div class="adaptive-body hidden" id="adaptiveBody"></div>
         <button class="adaptive-apply hidden" id="adaptiveApplyBtn"></button>
+      </div>
+
+      <div class="adaptive-card" id="deadlineCard">
+        <button class="adaptive-summary" id="deadlineSummaryBtn">
+          <span class="adaptive-icon">🎯</span>
+          <span class="adaptive-summary-text" id="deadlineSummaryText">Цель по дедлайну — задай вес и дату</span>
+          <span class="adaptive-chevron" id="deadlineChevron">▾</span>
+        </button>
+        <div class="adaptive-body hidden" id="deadlineBody">
+          <div class="deadline-row">
+            <input type="number" step="0.1" inputmode="decimal" id="deadlineGoalWeight" placeholder="Целевой вес, кг">
+            <input type="date" id="deadlineDate">
+          </div>
+          <div id="deadlineResult"></div>
+        </div>
+        <button class="adaptive-apply hidden" id="deadlineApplyBtn"></button>
       </div>
 
       <div class="section-title">Добавить приём пищи</div>
@@ -741,6 +762,9 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
   let allWorkouts = {};
   let todayPRs = 0;
   let storageOk = true;
+  let goalPlan = { goalWeight: null, deadline: null };
+  let cachedTDEE = null;
+  let profileData = null;
 
   const todayStr = () => {
     const d = new Date();
@@ -2114,6 +2138,121 @@ ${promptExtra}
     await safeStorageSet('foodTarget', JSON.stringify(FOOD_TARGET));
   }
 
+  // Shared by the manual pencil-edit and the deadline-goal apply button —
+  // keeps protein/fat fixed and fills carbs to hit the new calorie number,
+  // same rule the adaptive-target apply button already used.
+  async function applyManualCalorieTarget(calories) {
+    const newProtein = FOOD_TARGET.protein;
+    const newFat = FOOD_TARGET.fat;
+    const newCarbs = Math.max(50, Math.round((calories - newProtein * 4 - newFat * 9) / 4));
+    FOOD_TARGET = { calories, protein: newProtein, fat: newFat, carbs: newCarbs };
+    await saveFoodTarget();
+    await loadFoodTarget();
+    renderFoodDashboard();
+    renderWeekBar();
+    await computeAdaptiveTarget();
+  }
+
+  $('editKcalBtn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const val = prompt('Своя цель по калориям в день:', String(FOOD_TARGET.calories));
+    if (val === null) return;
+    const n = Math.round(Number(val));
+    if (!n || n < 800 || n > 6000) { alert('Введи число ккал от 800 до 6000.'); return; }
+    await applyManualCalorieTarget(n);
+  });
+
+  // ===== Deadline-based goal (target weight + date → required daily calories) =====
+  function latestKnownWeight() {
+    const weeks = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) })).sort((a,b) => a.d - b.d);
+    return weeks.length ? weeks[weeks.length - 1].val : null;
+  }
+
+  async function loadProfile() {
+    const val = await safeStorageGet('profile');
+    profileData = val ? JSON.parse(val) : null;
+  }
+
+  async function loadGoalPlan() {
+    const val = await safeStorageGet('goalPlan');
+    goalPlan = val ? JSON.parse(val) : { goalWeight: null, deadline: null };
+    $('deadlineGoalWeight').value = goalPlan.goalWeight || '';
+    $('deadlineDate').value = goalPlan.deadline || '';
+    renderDeadlineGoal();
+  }
+
+  async function saveGoalPlan() {
+    await safeStorageSet('goalPlan', JSON.stringify(goalPlan));
+  }
+
+  const MAX_SAFE_DAILY_DEFICIT = 1100; // ~1 kg/week cap, matches general safe-loss guidance
+  const MAX_SAFE_DAILY_SURPLUS = 500;
+
+  function renderDeadlineGoal() {
+    const summaryText = $('deadlineSummaryText');
+    const result = $('deadlineResult');
+    const applyBtn = $('deadlineApplyBtn');
+    const goalWeight = Number($('deadlineGoalWeight').value) || null;
+    const deadlineStr = $('deadlineDate').value;
+
+    if (!goalWeight || !deadlineStr) {
+      summaryText.textContent = 'Цель по дедлайну — задай вес и дату';
+      result.innerHTML = 'Впиши целевой вес и дату, к которой хочешь его достичь — рассчитаю нужную дневную калорийность.';
+      applyBtn.classList.add('hidden');
+      return;
+    }
+
+    const currentWeight = latestKnownWeight() || (profileData && profileData.weight) || goalWeight;
+    const deadline = new Date(deadlineStr + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((deadline - today) / 86400000);
+
+    if (daysLeft <= 0) {
+      summaryText.textContent = 'Цель по дедлайну — выбери дату в будущем';
+      result.innerHTML = 'Дата должна быть позже сегодняшней.';
+      applyBtn.classList.add('hidden');
+      return;
+    }
+
+    const weeksLeft = daysLeft / 7;
+    const weightDiff = currentWeight - goalWeight; // positive = need to lose
+    const tdee = cachedTDEE || (profileData && profileData.tdee) || 2000;
+    const requiredDailyDeficit = (weightDiff * 7700) / daysLeft;
+    const clampedDeficit = Math.max(-MAX_SAFE_DAILY_SURPLUS, Math.min(MAX_SAFE_DAILY_DEFICIT, requiredDailyDeficit));
+    const suggestedCalories = Math.max(1200, Math.round(tdee - clampedDeficit));
+    const rateKgPerWeek = (clampedDeficit * 7) / 7700;
+    const wasClamped = Math.abs(clampedDeficit - requiredDailyDeficit) > 1;
+
+    const dir = weightDiff > 0.05 ? 'похудеть на' : weightDiff < -0.05 ? 'набрать' : 'удержать вес около';
+    result.innerHTML = `Текущий вес: <b>${currentWeight} кг</b> → цель <b>${goalWeight} кг</b> к <b>${deadline.toLocaleDateString('ru-RU')}</b> (${daysLeft} дн., ~${weeksLeft.toFixed(1)} нед.).<br>
+      Нужно ${dir} <b>${Math.abs(weightDiff).toFixed(1)} кг</b>.<br>
+      Расход (TDEE, оценка): <b>~${Math.round(tdee)} ккал</b>.<br>
+      Расчётная цель дня: <b>${suggestedCalories} ккал</b> (${clampedDeficit >= 0 ? 'дефицит' : 'профицит'} ~${Math.abs(Math.round(clampedDeficit))} ккал/день, ~${Math.abs(rateKgPerWeek).toFixed(2)} кг/нед).`;
+    if (wasClamped) {
+      result.innerHTML += `<br><span style="color:var(--orange)">⚠️ Твой срок требует более резкого темпа — ограничил дефицит/профицит безопасным максимумом (~1 кг/нед). С такой скоростью к дедлайну можешь не успеть.</span>`;
+    }
+
+    summaryText.textContent = `Цель по дедлайну — ${suggestedCalories} ккал к ${deadline.toLocaleDateString('ru-RU')}`;
+    applyBtn.textContent = `Применить: ${suggestedCalories} ккал`;
+    applyBtn.classList.remove('hidden');
+    applyBtn.onclick = async () => {
+      await applyManualCalorieTarget(suggestedCalories);
+    };
+  }
+
+  ['deadlineGoalWeight', 'deadlineDate'].forEach(id => {
+    $(id).addEventListener('change', async () => {
+      goalPlan = { goalWeight: Number($('deadlineGoalWeight').value) || null, deadline: $('deadlineDate').value || null };
+      await saveGoalPlan();
+      renderDeadlineGoal();
+    });
+  });
+
+  $('deadlineSummaryBtn').addEventListener('click', () => {
+    $('deadlineBody').classList.toggle('hidden');
+    $('deadlineChevron').classList.toggle('open');
+  });
+
   // ===== Adaptive TDEE (MacroFactor-style: expenditure = intake + weight-change energy equivalent) =====
   async function computeAdaptiveTarget() {
     const weeks = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) })).sort((a,b) => a.d - b.d);
@@ -2126,6 +2265,7 @@ ${promptExtra}
       summaryText.textContent = `Адаптивная цель — нужно ещё ${2 - weeks.length} замер(а) веса`;
       body.innerHTML = `Нужно минимум 2 еженедельных замера веса, чтобы рассчитать твой реальный расход калорий (сейчас: ${weeks.length}). Пока цель фиксированная — ${FOOD_TARGET.calories} ккал.`;
       applyBtn.classList.add('hidden');
+      renderDeadlineGoal();
       return;
     }
     const w1 = weeks[weeks.length - 2], w2 = weeks[weeks.length - 1];
@@ -2155,10 +2295,12 @@ ${promptExtra}
       summaryText.textContent = 'Адаптивная цель — недостаточно данных питания пока';
       body.innerHTML = `Недостаточно записей питания между последними двумя взвешиваниями (${counted} из ${days} дней), чтобы точно оценить расход. Продолжай вести дневник каждый день — пересчитаю, как только данных будет достаточно.`;
       applyBtn.classList.add('hidden');
+      renderDeadlineGoal();
       return;
     }
     const avgIntake = sum / counted;
     const estimatedTDEE = Math.round(avgIntake + energyEquivPerDay);
+    cachedTDEE = estimatedTDEE;
     const suggestedDeficit = 550; // matches the original plan rationale (~0.5-0.6 kg/week)
     const suggestedCalories = Math.max(1500, estimatedTDEE - suggestedDeficit);
 
@@ -2174,21 +2316,14 @@ ${promptExtra}
       applyBtn.textContent = `Обновить цель на ${suggestedCalories} ккал`;
       applyBtn.classList.remove('hidden');
       applyBtn.onclick = async () => {
-        const newFat = FOOD_TARGET.fat;
-        const newProtein = FOOD_TARGET.protein;
-        const newCarbs = Math.max(50, Math.round((suggestedCalories - newProtein * 4 - newFat * 9) / 4));
-        FOOD_TARGET = { calories: suggestedCalories, protein: newProtein, fat: newFat, carbs: newCarbs };
-        await saveFoodTarget();
-        await loadFoodTarget();
-        renderFoodDashboard();
-        renderWeekBar();
-        await computeAdaptiveTarget();
+        await applyManualCalorieTarget(suggestedCalories);
       };
     } else {
       summaryText.textContent = `Адаптивная цель — ${FOOD_TARGET.calories} ккал уже точны`;
       body.innerHTML += `<br>Цель уже близка к расчётной — менять не нужно.`;
       applyBtn.classList.add('hidden');
     }
+    renderDeadlineGoal();
   }
 
   $('adaptiveSummaryBtn').addEventListener('click', () => {
@@ -2293,12 +2428,14 @@ ${promptExtra}
     await loadSelectedDateFood();
     await loadWeekFoodTotals();
     await loadWellbeing();
+    await loadProfile();
     renderFoodDashboard();
     renderWeekBar();
     renderFoodList();
     renderPatternBanner();
     await computeStreak();
     await computeAdaptiveTarget();
+    await loadGoalPlan();
   }
 
   async function init() {
@@ -2437,6 +2574,16 @@ ${promptExtra}
       try {
         const t = computeTargets();
         await window.storage.set('foodTarget', JSON.stringify({ calories: t.calories, protein: t.protein, fat: t.fat, carbs: t.carbs }), false);
+        // Persisted so the deadline-goal calculator has a TDEE fallback
+        // before any adaptive estimate exists, and a starting goal weight.
+        await window.storage.set('profile', JSON.stringify({
+          sex: $('onbSex').value,
+          age: Number($('onbAge').value) || 25,
+          height: Number($('onbHeight').value) || 170,
+          activity: Number($('onbActivity').value) || 1.375,
+          weight: t.weight, bmr: t.bmr, tdee: t.tdee
+        }), false);
+        await window.storage.set('goalPlan', JSON.stringify({ goalWeight: t.goalWeight, deadline: null }), false);
         // Seed this week's weigh-in with their starting weight so the
         // weekly weigh-in gate doesn't immediately block them.
         const monday = getMondayIso();
