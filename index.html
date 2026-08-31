@@ -279,19 +279,12 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .week-note { font-size: 11px; color: var(--text-dim); }
 
 .adaptive-card { background: linear-gradient(135deg, rgba(79,143,247,0.08), rgba(168,116,232,0.06)); border:1px solid var(--accent); border-radius: 14px; margin-bottom: 16px; overflow:hidden; }
-.adaptive-summary { width:100%; display:flex; align-items:center; gap: 8px; background:none; border:none; padding: 12px 16px; cursor:pointer; text-align:left; }
-.adaptive-icon { font-size: 15px; flex-shrink:0; }
-.adaptive-summary-text { flex:1; font-size: 12px; font-weight:600; color: var(--accent); }
-.adaptive-chevron { color: var(--accent); font-size: 12px; transition: transform .2s ease; flex-shrink:0; }
-.adaptive-chevron.open { transform: rotate(180deg); }
 .adaptive-body { font-size: 12px; line-height: 1.6; color: var(--text); padding: 0 16px 14px; }
 .adaptive-body b { color: var(--accent); font-family:'JetBrains Mono', monospace; }
-.adaptive-apply { width: calc(100% - 32px); margin: 0 16px 14px; background: var(--accent); border:none; color:#0d1a2e; font-weight:700; font-size: 12px; padding: 10px; border-radius: 10px; cursor:pointer; }
+.adaptive-apply { width: calc(100% - 32px); margin: 14px 16px; background: var(--accent); border:none; color:#0d1a2e; font-weight:700; font-size: 13px; padding: 12px; border-radius: 10px; cursor:pointer; }
+.adaptive-apply:disabled { opacity:.6; cursor:default; }
 
 .goal-edit-btn { background:none; border:none; color: var(--accent); font-size: 12px; cursor:pointer; padding: 2px 6px; margin-left: 2px; vertical-align:middle; }
-.deadline-row { display:flex; gap: 8px; margin: 0 16px 12px; }
-.deadline-row input { flex:1; min-width:0; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px; font-family:'JetBrains Mono', monospace; font-size: 13px; text-align:center; box-sizing:border-box; }
-.deadline-row input:focus { outline:none; border-color: var(--accent); }
 
 .pattern-banner { display:flex; gap:8px; align-items:flex-start; background: rgba(226,84,63,0.1); border:1px solid var(--bad); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; }
 .pattern-banner b { color: var(--bad); }
@@ -619,30 +612,9 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
         <div class="week-note" id="weekNote"></div>
       </div>
 
-      <div class="adaptive-card hidden" id="adaptiveCard">
-        <button class="adaptive-summary" id="adaptiveSummaryBtn">
-          <span class="adaptive-icon">🧮</span>
-          <span class="adaptive-summary-text" id="adaptiveSummaryText">Адаптивная цель</span>
-          <span class="adaptive-chevron" id="adaptiveChevron">▾</span>
-        </button>
-        <div class="adaptive-body hidden" id="adaptiveBody"></div>
-        <button class="adaptive-apply hidden" id="adaptiveApplyBtn"></button>
-      </div>
-
-      <div class="adaptive-card" id="deadlineCard">
-        <button class="adaptive-summary" id="deadlineSummaryBtn">
-          <span class="adaptive-icon">🎯</span>
-          <span class="adaptive-summary-text" id="deadlineSummaryText">Цель по дедлайну — задай вес и дату</span>
-          <span class="adaptive-chevron" id="deadlineChevron">▾</span>
-        </button>
-        <div class="adaptive-body hidden" id="deadlineBody">
-          <div class="deadline-row">
-            <input type="number" step="0.1" inputmode="decimal" id="deadlineGoalWeight" placeholder="Целевой вес, кг">
-            <input type="date" id="deadlineDate">
-          </div>
-          <div id="deadlineResult"></div>
-        </div>
-        <button class="adaptive-apply hidden" id="deadlineApplyBtn"></button>
+      <div class="adaptive-card" id="recalcCard">
+        <button class="adaptive-apply" id="recalcBtn">🔄 Пересчитать калории</button>
+        <div class="adaptive-body hidden" id="recalcResult"></div>
       </div>
 
       <div class="section-title">Добавить приём пищи</div>
@@ -762,8 +734,7 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
   let allWorkouts = {};
   let todayPRs = 0;
   let storageOk = true;
-  let goalPlan = { goalWeight: null, deadline: null };
-  let cachedTDEE = null;
+  let goalPlan = { goalWeight: null };
   let profileData = null;
 
   const todayStr = () => {
@@ -2138,9 +2109,8 @@ ${promptExtra}
     await safeStorageSet('foodTarget', JSON.stringify(FOOD_TARGET));
   }
 
-  // Shared by the manual pencil-edit and the deadline-goal apply button —
-  // keeps protein/fat fixed and fills carbs to hit the new calorie number,
-  // same rule the adaptive-target apply button already used.
+  // Manual pencil-edit — keeps protein/fat fixed and fills carbs to hit
+  // the new calorie number.
   async function applyManualCalorieTarget(calories) {
     const newProtein = FOOD_TARGET.protein;
     const newFat = FOOD_TARGET.fat;
@@ -2150,7 +2120,6 @@ ${promptExtra}
     await loadFoodTarget();
     renderFoodDashboard();
     renderWeekBar();
-    await computeAdaptiveTarget();
   }
 
   $('editKcalBtn').addEventListener('click', async (e) => {
@@ -2162,7 +2131,8 @@ ${promptExtra}
     await applyManualCalorieTarget(n);
   });
 
-  // ===== Deadline-based goal (target weight + date → required daily calories) =====
+  // ===== Recalculate calories: Mifflin-St Jeor formula, calibrated against =====
+  // ===== observed intake/weight-change data when there's enough of it     =====
   function latestKnownWeight() {
     const weeks = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) })).sort((a,b) => a.d - b.d);
     return weeks.length ? weeks[weeks.length - 1].val : null;
@@ -2175,161 +2145,133 @@ ${promptExtra}
 
   async function loadGoalPlan() {
     const val = await safeStorageGet('goalPlan');
-    goalPlan = val ? JSON.parse(val) : { goalWeight: null, deadline: null };
-    $('deadlineGoalWeight').value = goalPlan.goalWeight || '';
-    $('deadlineDate').value = goalPlan.deadline || '';
-    renderDeadlineGoal();
+    goalPlan = val ? JSON.parse(val) : { goalWeight: null };
   }
 
-  async function saveGoalPlan() {
-    await safeStorageSet('goalPlan', JSON.stringify(goalPlan));
+  // Fills in sex/age/height/activity via quick prompts for accounts that
+  // onboarded before these were collected, then persists them so this only
+  // has to happen once.
+  async function ensureProfile() {
+    if (profileData && profileData.sex && profileData.age && profileData.height && profileData.activity) {
+      return profileData;
+    }
+    const sexRaw = prompt('Пол — м/ж:', (profileData && profileData.sex === 'female') ? 'ж' : 'м');
+    if (sexRaw === null) return null;
+    const sex = sexRaw.trim().toLowerCase().startsWith('ж') ? 'female' : 'male';
+    const age = Number(prompt('Возраст:', (profileData && profileData.age) || 25));
+    const height = Number(prompt('Рост, см:', (profileData && profileData.height) || 170));
+    const activityRaw = prompt('Активность: 1 — сидячая почти без спорта, 2 — тренировки 3-4 р/нед, 3 — спорт почти каждый день', '2');
+    const activity = activityRaw === '1' ? 1.2 : activityRaw === '3' ? 1.55 : 1.375;
+    if (!age || !height) { alert('Нужны возраст и рост, чтобы посчитать.'); return null; }
+    profileData = { ...(profileData || {}), sex, age, height, activity };
+    await safeStorageSet('profile', JSON.stringify(profileData));
+    return profileData;
   }
 
-  const MAX_SAFE_DAILY_DEFICIT = 1100; // ~1 kg/week cap, matches general safe-loss guidance
-  const MAX_SAFE_DAILY_SURPLUS = 500;
-
-  function renderDeadlineGoal() {
-    const summaryText = $('deadlineSummaryText');
-    const result = $('deadlineResult');
-    const applyBtn = $('deadlineApplyBtn');
-    const goalWeight = Number($('deadlineGoalWeight').value) || null;
-    const deadlineStr = $('deadlineDate').value;
-
-    if (!goalWeight || !deadlineStr) {
-      summaryText.textContent = 'Цель по дедлайну — задай вес и дату';
-      result.innerHTML = 'Впиши целевой вес и дату, к которой хочешь его достичь — рассчитаю нужную дневную калорийность.';
-      applyBtn.classList.add('hidden');
-      return;
-    }
-
-    const currentWeight = latestKnownWeight() || (profileData && profileData.weight) || goalWeight;
-    const deadline = new Date(deadlineStr + 'T00:00:00');
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const daysLeft = Math.round((deadline - today) / 86400000);
-
-    if (daysLeft <= 0) {
-      summaryText.textContent = 'Цель по дедлайну — выбери дату в будущем';
-      result.innerHTML = 'Дата должна быть позже сегодняшней.';
-      applyBtn.classList.add('hidden');
-      return;
-    }
-
-    const weeksLeft = daysLeft / 7;
-    const weightDiff = currentWeight - goalWeight; // positive = need to lose
-    const tdee = cachedTDEE || (profileData && profileData.tdee) || 2000;
-    const requiredDailyDeficit = (weightDiff * 7700) / daysLeft;
-    const clampedDeficit = Math.max(-MAX_SAFE_DAILY_SURPLUS, Math.min(MAX_SAFE_DAILY_DEFICIT, requiredDailyDeficit));
-    const suggestedCalories = Math.max(1200, Math.round(tdee - clampedDeficit));
-    const rateKgPerWeek = (clampedDeficit * 7) / 7700;
-    const wasClamped = Math.abs(clampedDeficit - requiredDailyDeficit) > 1;
-
-    const dir = weightDiff > 0.05 ? 'похудеть на' : weightDiff < -0.05 ? 'набрать' : 'удержать вес около';
-    result.innerHTML = `Текущий вес: <b>${currentWeight} кг</b> → цель <b>${goalWeight} кг</b> к <b>${deadline.toLocaleDateString('ru-RU')}</b> (${daysLeft} дн., ~${weeksLeft.toFixed(1)} нед.).<br>
-      Нужно ${dir} <b>${Math.abs(weightDiff).toFixed(1)} кг</b>.<br>
-      Расход (TDEE, оценка): <b>~${Math.round(tdee)} ккал</b>.<br>
-      Расчётная цель дня: <b>${suggestedCalories} ккал</b> (${clampedDeficit >= 0 ? 'дефицит' : 'профицит'} ~${Math.abs(Math.round(clampedDeficit))} ккал/день, ~${Math.abs(rateKgPerWeek).toFixed(2)} кг/нед).`;
-    if (wasClamped) {
-      result.innerHTML += `<br><span style="color:var(--orange)">⚠️ Твой срок требует более резкого темпа — ограничил дефицит/профицит безопасным максимумом (~1 кг/нед). С такой скоростью к дедлайну можешь не успеть.</span>`;
-    }
-
-    summaryText.textContent = `Цель по дедлайну — ${suggestedCalories} ккал к ${deadline.toLocaleDateString('ru-RU')}`;
-    applyBtn.textContent = `Применить: ${suggestedCalories} ккал`;
-    applyBtn.classList.remove('hidden');
-    applyBtn.onclick = async () => {
-      await applyManualCalorieTarget(suggestedCalories);
-    };
-  }
-
-  ['deadlineGoalWeight', 'deadlineDate'].forEach(id => {
-    $(id).addEventListener('change', async () => {
-      goalPlan = { goalWeight: Number($('deadlineGoalWeight').value) || null, deadline: $('deadlineDate').value || null };
-      await saveGoalPlan();
-      renderDeadlineGoal();
-    });
-  });
-
-  $('deadlineSummaryBtn').addEventListener('click', () => {
-    $('deadlineBody').classList.toggle('hidden');
-    $('deadlineChevron').classList.toggle('open');
-  });
-
-  // ===== Adaptive TDEE (MacroFactor-style: expenditure = intake + weight-change energy equivalent) =====
-  async function computeAdaptiveTarget() {
+  // Scans every consecutive pair of weekly weigh-ins (not just the latest),
+  // estimating TDEE from each as avgIntake + weight-change energy equivalent,
+  // then combines them weighted by food-log coverage and recency — a single
+  // noisy week can no longer swing the whole estimate.
+  async function computeObservedTDEE() {
     const weeks = Object.entries(weightHistory).map(([wk, val]) => ({ wk, val, d: parseDate(wk) })).sort((a,b) => a.d - b.d);
-    const box = $('adaptiveCard');
-    const summaryText = $('adaptiveSummaryText');
-    const body = $('adaptiveBody');
-    const applyBtn = $('adaptiveApplyBtn');
-    if (weeks.length < 2) {
-      box.classList.remove('hidden');
-      summaryText.textContent = `Адаптивная цель — нужно ещё ${2 - weeks.length} замер(а) веса`;
-      body.innerHTML = `Нужно минимум 2 еженедельных замера веса, чтобы рассчитать твой реальный расход калорий (сейчас: ${weeks.length}). Пока цель фиксированная — ${FOOD_TARGET.calories} ккал.`;
-      applyBtn.classList.add('hidden');
-      renderDeadlineGoal();
-      return;
+    if (weeks.length < 2) return null;
+    const pairs = [];
+    for (let i = 1; i < weeks.length; i++) {
+      const w1 = weeks[i - 1], w2 = weeks[i];
+      const days = Math.max(1, Math.round((w2.d - w1.d) / 86400000));
+      if (days > 21) continue; // gap too large (missed weigh-ins) — untrustworthy
+      const dates = [];
+      for (let d = 0; d < days; d++) {
+        const dt = new Date(w1.d);
+        dt.setDate(dt.getDate() + d + 1);
+        dates.push(fmtDMY(dt));
+      }
+      const dayVals = await runLimited(dates, d => safeStorageGet('food:' + d), 4);
+      let sum = 0, counted = 0;
+      dayVals.forEach(val => {
+        if (!val) return;
+        try {
+          const entries = JSON.parse(val);
+          const kcal = entries.reduce((a, e) => a + (Number(e.calories) || 0), 0);
+          if (kcal > 0) { sum += kcal; counted++; }
+        } catch (e) { /* skip */ }
+      });
+      const coverage = counted / days;
+      if (counted < Math.max(3, Math.floor(days * 0.5))) continue; // too sparse to trust
+      const avgIntake = sum / counted;
+      const weightChangeKg = w2.val - w1.val;
+      const energyEquivPerDay = (weightChangeKg * 7700) / days;
+      pairs.push({ tdeeEstimate: avgIntake + energyEquivPerDay, coverage });
     }
-    const w1 = weeks[weeks.length - 2], w2 = weeks[weeks.length - 1];
-    const days = Math.max(1, Math.round((w2.d - w1.d) / 86400000));
-    const weightChangeKg = w2.val - w1.val; // negative = lost weight
-    const energyEquivPerDay = (weightChangeKg * 7700) / days; // kcal/day represented by the weight change
-
-    // Average intake over that same window (from stored day totals where available)
-    const dates = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date(w1.d);
-      d.setDate(d.getDate() + i + 1);
-      dates.push(fmtDMY(d));
-    }
-    const dayVals = await runLimited(dates, d => safeStorageGet('food:' + d), 3);
-    let sum = 0, counted = 0;
-    dayVals.forEach(val => {
-      if (!val) return;
-      try {
-        const entries = JSON.parse(val);
-        const kcal = entries.reduce((a, e) => a + (Number(e.calories) || 0), 0);
-        if (kcal > 0) { sum += kcal; counted++; }
-      } catch (e) { /* skip */ }
+    if (!pairs.length) return null;
+    let weightedSum = 0, weightTotal = 0;
+    pairs.forEach((p, idx) => {
+      const w = (idx + 1) * p.coverage; // later pairs (closer to now) weigh more
+      weightedSum += p.tdeeEstimate * w;
+      weightTotal += w;
     });
-    if (counted < Math.max(3, Math.floor(days * 0.5))) {
-      box.classList.remove('hidden');
-      summaryText.textContent = 'Адаптивная цель — недостаточно данных питания пока';
-      body.innerHTML = `Недостаточно записей питания между последними двумя взвешиваниями (${counted} из ${days} дней), чтобы точно оценить расход. Продолжай вести дневник каждый день — пересчитаю, как только данных будет достаточно.`;
-      applyBtn.classList.add('hidden');
-      renderDeadlineGoal();
-      return;
-    }
-    const avgIntake = sum / counted;
-    const estimatedTDEE = Math.round(avgIntake + energyEquivPerDay);
-    cachedTDEE = estimatedTDEE;
-    const suggestedDeficit = 550; // matches the original plan rationale (~0.5-0.6 kg/week)
-    const suggestedCalories = Math.max(1500, estimatedTDEE - suggestedDeficit);
-
-    box.classList.remove('hidden');
-    const trendWord = weightChangeKg < -0.05 ? 'снижался' : weightChangeKg > 0.05 ? 'рос' : 'держался ровно';
-    body.innerHTML = `За последние ${days} дн. вес ${trendWord} (<b>${weightChangeKg > 0 ? '+' : ''}${weightChangeKg.toFixed(1)} кг</b>) при среднем питании <b>${Math.round(avgIntake)} ккал/день</b>.<br>
-      Расчётный реальный расход (TDEE): <b>~${estimatedTDEE} ккал</b>.<br>
-      Текущая цель: <b>${FOOD_TARGET.calories} ккал</b>.`;
-
-    if (Math.abs(suggestedCalories - FOOD_TARGET.calories) >= 75) {
-      summaryText.textContent = `Адаптивная цель — предлагаю ${suggestedCalories} ккал вместо ${FOOD_TARGET.calories}`;
-      body.innerHTML += `<br>Рекомендуемая цель для дефицита ~0.5 кг/нед: <b>${suggestedCalories} ккал</b>.`;
-      applyBtn.textContent = `Обновить цель на ${suggestedCalories} ккал`;
-      applyBtn.classList.remove('hidden');
-      applyBtn.onclick = async () => {
-        await applyManualCalorieTarget(suggestedCalories);
-      };
-    } else {
-      summaryText.textContent = `Адаптивная цель — ${FOOD_TARGET.calories} ккал уже точны`;
-      body.innerHTML += `<br>Цель уже близка к расчётной — менять не нужно.`;
-      applyBtn.classList.add('hidden');
-    }
-    renderDeadlineGoal();
+    return { tdee: weightedSum / weightTotal, pairsUsed: pairs.length };
   }
 
-  $('adaptiveSummaryBtn').addEventListener('click', () => {
-    $('adaptiveBody').classList.toggle('hidden');
-    $('adaptiveChevron').classList.toggle('open');
-  });
+  async function recalcCalories() {
+    const btn = $('recalcBtn');
+    const result = $('recalcResult');
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Считаю...';
+    try {
+      const profile = await ensureProfile();
+      if (!profile) return;
+      const currentWeight = latestKnownWeight() || profile.weight;
+      if (!currentWeight) { alert('Нужно хотя бы одно взвешивание, чтобы посчитать цель.'); return; }
+      const goalWeight = (goalPlan && goalPlan.goalWeight) || currentWeight;
+
+      // Mifflin-St Jeor — the best-validated predictive BMR equation for the
+      // general population without body-fat data (more accurate than
+      // Harris-Benedict across both lean and overweight subjects).
+      const bmr = profile.sex === 'male'
+        ? 10 * currentWeight + 6.25 * profile.height - 5 * profile.age + 5
+        : 10 * currentWeight + 6.25 * profile.height - 5 * profile.age - 161;
+      const formulaTDEE = bmr * profile.activity;
+
+      let finalTDEE = formulaTDEE;
+      let breakdown = `Формула Миффлина-Сан Жеора: базовый обмен <b>${Math.round(bmr)} ккал</b> × активность <b>${profile.activity}</b> = <b>~${Math.round(formulaTDEE)} ккал</b>.`;
+      const observed = await computeObservedTDEE();
+      if (observed) {
+        const trust = Math.min(0.7, 0.15 * observed.pairsUsed);
+        finalTDEE = trust * observed.tdee + (1 - trust) * formulaTDEE;
+        breakdown += `<br>Фактический расход по дневнику (${observed.pairsUsed} период${observed.pairsUsed === 1 ? '' : 'а'} веса+еды): <b>~${Math.round(observed.tdee)} ккал</b> — учтён с весом ${Math.round(trust * 100)}%.`;
+      }
+
+      const weightDiff = currentWeight - goalWeight; // positive = need to lose
+      let deficit, goalNote;
+      if (weightDiff > 0.5) { deficit = 500; goalNote = 'дефицит ~500 ккал/день для похудения (~0.45 кг/нед)'; }
+      else if (weightDiff < -0.5) { deficit = -300; goalNote = 'профицит ~300 ккал/день для набора'; }
+      else { deficit = 0; goalNote = 'удержание текущего веса'; }
+
+      const calories = Math.max(1200, Math.round(finalTDEE - deficit));
+      const protein = Math.round(currentWeight * 2); // g/kg — high end of evidence-based range, protects lean mass in a deficit
+      const fat = Math.round(currentWeight * 0.8); // g/kg — covers hormonal needs
+      const carbs = Math.max(50, Math.round((calories - protein * 4 - fat * 9) / 4));
+
+      FOOD_TARGET = { calories, protein, fat, carbs };
+      await saveFoodTarget();
+      await loadFoodTarget();
+      renderFoodDashboard();
+      renderWeekBar();
+
+      result.classList.remove('hidden');
+      result.innerHTML = `${breakdown}<br>Текущий вес <b>${currentWeight} кг</b>, цель <b>${goalWeight} кг</b> → ${goalNote}.<br>
+        Новая цель: <b>${calories} ккал</b> · белки <b>${protein}г</b> · жиры <b>${fat}г</b> · углеводы <b>${carbs}г</b>.`;
+    } catch (err) {
+      alert('Не удалось пересчитать: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
+    }
+  }
+
+  $('recalcBtn').addEventListener('click', recalcCalories);
 
   // ===== Logging streak =====
   async function computeStreak() {
@@ -2429,13 +2371,12 @@ ${promptExtra}
     await loadWeekFoodTotals();
     await loadWellbeing();
     await loadProfile();
+    await loadGoalPlan();
     renderFoodDashboard();
     renderWeekBar();
     renderFoodList();
     renderPatternBanner();
     await computeStreak();
-    await computeAdaptiveTarget();
-    await loadGoalPlan();
   }
 
   async function init() {
@@ -2574,8 +2515,8 @@ ${promptExtra}
       try {
         const t = computeTargets();
         await window.storage.set('foodTarget', JSON.stringify({ calories: t.calories, protein: t.protein, fat: t.fat, carbs: t.carbs }), false);
-        // Persisted so the deadline-goal calculator has a TDEE fallback
-        // before any adaptive estimate exists, and a starting goal weight.
+        // Persisted so "Пересчитать калории" has sex/age/height/activity
+        // ready immediately, without asking again.
         await window.storage.set('profile', JSON.stringify({
           sex: $('onbSex').value,
           age: Number($('onbAge').value) || 25,
@@ -2583,7 +2524,7 @@ ${promptExtra}
           activity: Number($('onbActivity').value) || 1.375,
           weight: t.weight, bmr: t.bmr, tdee: t.tdee
         }), false);
-        await window.storage.set('goalPlan', JSON.stringify({ goalWeight: t.goalWeight, deadline: null }), false);
+        await window.storage.set('goalPlan', JSON.stringify({ goalWeight: t.goalWeight }), false);
         // Seed this week's weigh-in with their starting weight so the
         // weekly weigh-in gate doesn't immediately block them.
         const monday = getMondayIso();
