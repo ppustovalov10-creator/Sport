@@ -844,13 +844,36 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
       .map(w => ({ date: w.date, sets: w.exercises.find(e => e.name === exerciseName).sets }));
   }
 
+  // The best reps ever logged at this exact weight (any past session, not
+  // just the most recent one) — the target should never drop below "record
+  // at this weight + 1" just because the last session came in under it.
+  function maxRepsAtWeight(dayType, exerciseName, weight, excludeDate) {
+    if (weight === null || weight === undefined || weight === '' || isNaN(Number(weight))) return null;
+    const wv = Number(weight);
+    let max = null;
+    Object.values(allWorkouts).forEach(w => {
+      if (w.dayType !== dayType || w.date === excludeDate) return;
+      const ex = w.exercises.find(e => e.name === exerciseName);
+      if (!ex) return;
+      ex.sets.forEach(s => {
+        if (Number(s.w) !== wv) return;
+        if (s.r === null || s.r === undefined || s.r === '') return;
+        const rv = Number(s.r);
+        if (max === null || rv > max) max = rv;
+      });
+    });
+    return max;
+  }
+
   function getTarget(dayType, exerciseName, excludeDate) {
     const hist = getHistoryFor(dayType, exerciseName, excludeDate);
     if (hist.length) {
       const last = hist[0];
       const targetSets = last.sets.map(s => {
         if (s.r === null || s.r === undefined || s.r === '') return { w: s.w, r: null };
-        return { w: s.w, r: Number(s.r) + 1 };
+        const bestEver = maxRepsAtWeight(dayType, exerciseName, s.w, excludeDate);
+        const baseline = bestEver !== null ? bestEver : Number(s.r);
+        return { w: s.w, r: baseline + 1 };
       });
       return { sourceDate: last.date, sets: targetSets, projected: false };
     }
