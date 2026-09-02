@@ -844,10 +844,26 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
       .map(w => ({ date: w.date, sets: w.exercises.find(e => e.name === exerciseName).sets }));
   }
 
-  // The best reps ever logged at this exact weight (any past session, not
-  // just the most recent one) — the target should never drop below "record
-  // at this weight + 1" just because the last session came in under it.
-  function maxRepsAtWeight(dayType, exerciseName, weight, excludeDate) {
+  // Exercises are often logged as several sets at the SAME weight (e.g.
+  // 5кг×20, 5кг×17, 5кг×14 — three distinct sets, not one). Matching by
+  // weight alone collapses all of them into a single slot. "occurrence"
+  // disambiguates: the 1st, 2nd, 3rd... set at that weight within the
+  // session, so each set is compared against its own counterpart in past
+  // sessions instead of whichever same-weight set happens to be found first.
+  function occurrenceOfSet(sets, idx) {
+    const wv = Number(sets[idx].w);
+    let occ = 0;
+    for (let i = 0; i <= idx; i++) {
+      if (Number(sets[i].w) === wv) occ++;
+    }
+    return occ;
+  }
+
+  // The best reps ever logged at this exact weight AND occurrence (any past
+  // session, not just the most recent one) — the target should never drop
+  // below "record at this weight/slot + 1" just because the last session
+  // came in under it.
+  function maxRepsAtWeight(dayType, exerciseName, weight, occurrence, excludeDate) {
     if (weight === null || weight === undefined || weight === '' || isNaN(Number(weight))) return null;
     const wv = Number(weight);
     let max = null;
@@ -855,12 +871,11 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
       if (w.dayType !== dayType || w.date === excludeDate) return;
       const ex = w.exercises.find(e => e.name === exerciseName);
       if (!ex) return;
-      ex.sets.forEach(s => {
-        if (Number(s.w) !== wv) return;
-        if (s.r === null || s.r === undefined || s.r === '') return;
-        const rv = Number(s.r);
-        if (max === null || rv > max) max = rv;
-      });
+      const matches = ex.sets.filter(s => Number(s.w) === wv && s.r !== null && s.r !== undefined && s.r !== '');
+      if (!matches.length) return;
+      const m = matches[Math.min(occurrence, matches.length) - 1];
+      const rv = Number(m.r);
+      if (max === null || rv > max) max = rv;
     });
     return max;
   }
@@ -869,9 +884,10 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     const hist = getHistoryFor(dayType, exerciseName, excludeDate);
     if (hist.length) {
       const last = hist[0];
-      const targetSets = last.sets.map(s => {
+      const targetSets = last.sets.map((s, idx) => {
         if (s.r === null || s.r === undefined || s.r === '') return { w: s.w, r: null };
-        const bestEver = maxRepsAtWeight(dayType, exerciseName, s.w, excludeDate);
+        const occ = occurrenceOfSet(last.sets, idx);
+        const bestEver = maxRepsAtWeight(dayType, exerciseName, s.w, occ, excludeDate);
         const baseline = bestEver !== null ? bestEver : Number(s.r);
         return { w: s.w, r: baseline + 1 };
       });
@@ -890,15 +906,22 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     return null;
   }
 
+  // Each target set can only be satisfied by one of today's sets — without
+  // this, a single big set at a shared weight could count toward every
+  // target slot logged at that same weight.
   function isTargetAchieved(target, todaySets) {
     if (!target) return false;
+    const pool = todaySets.slice();
     return target.sets.every(t => {
       if (t.r === null) return true;
-      return todaySets.some(s => Number(s.w) === Number(t.w) && s.r !== null && Number(s.r) >= t.r);
+      const idx = pool.findIndex(s => Number(s.w) === Number(t.w) && s.r !== null && Number(s.r) >= t.r);
+      if (idx === -1) return false;
+      pool.splice(idx, 1);
+      return true;
     });
   }
 
-  function getPrevRepsAtWeight(dayType, exerciseName, weight, excludeDate) {
+  function getPrevRepsAtWeight(dayType, exerciseName, weight, occurrence, excludeDate) {
     if (weight === null || weight === undefined || weight === '' || isNaN(Number(weight))) return null;
     const wv = Number(weight);
     const sorted = Object.values(allWorkouts)
@@ -907,8 +930,11 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
     for (const w of sorted) {
       const ex = w.exercises.find(e => e.name === exerciseName);
       if (!ex) continue;
-      const match = ex.sets.find(s => Number(s.w) === wv && s.r !== null && s.r !== undefined && s.r !== '');
-      if (match) return { reps: Number(match.r), date: w.date };
+      const matches = ex.sets.filter(s => Number(s.w) === wv && s.r !== null && s.r !== undefined && s.r !== '');
+      if (matches.length) {
+        const m = matches[Math.min(occurrence, matches.length) - 1];
+        return { reps: Number(m.r), date: w.date };
+      }
     }
     return null;
   }
@@ -1214,7 +1240,8 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
         if (isPR) {
           cls = 'pr'; prefix = '🏆 ';
         } else if (s.w !== null && s.r !== null) {
-          const prev = getPrevRepsAtWeight(currentDay, name, s.w, todayStr());
+          const occ = occurrenceOfSet(todaySets, idx);
+          const prev = getPrevRepsAtWeight(currentDay, name, s.w, occ, todayStr());
           if (prev) {
             const diff = Number(s.r) - prev.reps;
             if (diff > 0) { cls = 'up'; suffix = ` (+${diff})`; }
