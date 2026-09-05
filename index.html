@@ -2014,36 +2014,42 @@ ${promptExtra}
     const photos = pendingPhotos.slice();
     $('loadingBox').classList.remove('hidden');
     $('verdictBox').innerHTML = '';
-    // Independent photos — analyze them in parallel (bounded), same as
-    // multi-line text entries, instead of one after another.
-    const verdictParts = await runLimited(photos, async (photo) => {
-      try {
-        const note = (photo.note || '').trim();
-        let promptExtra = 'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ.';
-        if (note) {
-          promptExtra += ` ВАЖНО: клиент съел не всё, что видно на фото, а уточнил порцию так: "${note}". Считай калорийность и БЖУ именно по этому уточнению (это может быть вес в граммах, доля порции или что было убрано), а не по всему, что видно на фото.`;
-        } else {
-          promptExtra += ' Оцени калорийность и БЖУ на ту порцию, которая видна на фото целиком.';
+    try {
+      // Independent photos — analyze them in parallel (bounded), same as
+      // multi-line text entries, instead of one after another.
+      const verdictParts = await runLimited(photos, async (photo) => {
+        try {
+          const note = (photo.note || '').trim();
+          let promptExtra = 'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ.';
+          if (note) {
+            promptExtra += ` ВАЖНО: клиент съел не всё, что видно на фото, а уточнил порцию так: "${note}". Считай калорийность и БЖУ именно по этому уточнению (это может быть вес в граммах, доля порции или что было убрано), а не по всему, что видно на фото.`;
+          } else {
+            promptExtra += ' Оцени калорийность и БЖУ на ту порцию, которая видна на фото целиком.';
+          }
+          const result = await analyzeFoodWithRetry(
+            promptExtra,
+            { media_type: photo.mimeType, data: photo.base64 }
+          );
+          const entry = buildFoodEntry(result);
+          todayFood.push(entry);
+          return verdictHtml(entry);
+        } catch (err) {
+          console.error(err);
+          const noKey = err.message === 'NO_API_KEY';
+          const reason = noKey ? 'нет ключа — нажми 🔑' : ('не получилось: ' + (err.message || 'неизвестная ошибка сети'));
+          return `<div class="verdict-box"><div class="verdict-comment bad">Фото — ${escapeHtml(reason)}.</div></div>`;
         }
-        const result = await analyzeFoodWithRetry(
-          promptExtra,
-          { media_type: photo.mimeType, data: photo.base64 }
-        );
-        const entry = buildFoodEntry(result);
-        todayFood.push(entry);
-        return verdictHtml(entry);
-      } catch (err) {
-        console.error(err);
-        const noKey = err.message === 'NO_API_KEY';
-        const reason = noKey ? 'нет ключа — нажми 🔑' : ('не получилось: ' + (err.message || 'неизвестная ошибка сети'));
-        return `<div class="verdict-box"><div class="verdict-comment bad">Фото — ${escapeHtml(reason)}.</div></div>`;
-      }
-    }, 3);
-    await commitFoodEntries();
-    $('verdictBox').innerHTML = verdictParts.join('');
-    clearPendingPhotos();
-    $('uploadZone').classList.remove('hidden');
-    $('loadingBox').classList.add('hidden');
+      }, 3);
+      await commitFoodEntries();
+      $('verdictBox').innerHTML = verdictParts.join('');
+      clearPendingPhotos();
+      $('uploadZone').classList.remove('hidden');
+    } catch (err) {
+      console.error(err);
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Не получилось сохранить: ${escapeHtml(err.message || 'неизвестная ошибка')}.</div></div>`;
+    } finally {
+      $('loadingBox').classList.add('hidden');
+    }
   });
 
   $('photoToggleBtn').addEventListener('click', () => {
@@ -2071,27 +2077,33 @@ ${promptExtra}
     }
     $('loadingBox').classList.remove('hidden');
     $('verdictBox').innerHTML = '';
-    // Multiple dishes are independent Gemini calls — run them in parallel
-    // (bounded) instead of one after another, so 3 lines take roughly as
-    // long as 1 instead of 3x.
-    const verdictParts = await runLimited(lines, async (line) => {
-      try {
-        const result = await analyzeFoodWithRetry(`Клиент описал текстом, что съел: "${line}". Оцени примерную калорийность и БЖУ по этому описанию.`, null);
-        const entry = buildFoodEntry(result);
-        todayFood.push(entry);
-        return verdictHtml(entry);
-      } catch (err) {
-        console.error(err);
-        const reason = err && err.message === 'NO_API_KEY'
-          ? 'нет ключа — нажми 🔑'
-          : (err && err.message) || 'неизвестная ошибка сети';
-        return `<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}» — не получилось (${escapeHtml(reason)}).</div></div>`;
-      }
-    }, 3);
-    await commitFoodEntries();
-    $('verdictBox').innerHTML = verdictParts.join('');
-    input.value = '';
-    $('loadingBox').classList.add('hidden');
+    try {
+      // Multiple dishes are independent Gemini calls — run them in parallel
+      // (bounded) instead of one after another, so 3 lines take roughly as
+      // long as 1 instead of 3x.
+      const verdictParts = await runLimited(lines, async (line) => {
+        try {
+          const result = await analyzeFoodWithRetry(`Клиент описал текстом, что съел: "${line}". Оцени примерную калорийность и БЖУ по этому описанию.`, null);
+          const entry = buildFoodEntry(result);
+          todayFood.push(entry);
+          return verdictHtml(entry);
+        } catch (err) {
+          console.error(err);
+          const reason = err && err.message === 'NO_API_KEY'
+            ? 'нет ключа — нажми 🔑'
+            : (err && err.message) || 'неизвестная ошибка сети';
+          return `<div class="verdict-box"><div class="verdict-comment bad">«${escapeHtml(line)}» — не получилось (${escapeHtml(reason)}).</div></div>`;
+        }
+      }, 3);
+      await commitFoodEntries();
+      $('verdictBox').innerHTML = verdictParts.join('');
+      input.value = '';
+    } catch (err) {
+      console.error(err);
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Не получилось сохранить: ${escapeHtml(err.message || 'неизвестная ошибка')}.</div></div>`;
+    } finally {
+      $('loadingBox').classList.add('hidden');
+    }
   });
   $('textFoodInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('textFoodBtn').click(); });
 
@@ -2183,6 +2195,8 @@ ${promptExtra}
   // wrapping, thinkingBudget:0 skips extended reasoning this small a
   // classification task doesn't need, and the token cap matches the size
   // of the JSON object we actually expect back.
+  const GEMINI_TIMEOUT_MS = 20000;
+
   async function callGemini(parts, systemInstruction, priorTurns) {
     const model = 'gemini-3.1-flash-lite';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(window.apiConfig.getKey())}`;
@@ -2196,11 +2210,27 @@ ${promptExtra}
     };
     if (systemInstruction) body.system_instruction = { parts: [{ text: systemInstruction }] };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    // fetch() has no built-in timeout — on a flaky connection it can hang
+    // for minutes with the loading spinner never resolving either way.
+    // Abort and surface a clear error instead of waiting forever.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error(`Gemini не ответил за ${GEMINI_TIMEOUT_MS / 1000} секунд — слабая связь или сервер перегружен. Попробуй ещё раз.`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!response.ok) {
       let detail = '';
       try {
