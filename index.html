@@ -314,6 +314,16 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
 .upload-zone:hover { border-color: var(--text-dim); }
 .upload-icon { font-size: 22px; opacity:.6; }
 .upload-hint { font-size: 13px; color: var(--text-dim); font-weight:500; }
+.photo-stage { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 8px; }
+.photo-stage-preview { display:flex; gap: 10px; align-items:flex-start; margin-bottom: 10px; }
+.photo-stage-preview img { width: 72px; height: 72px; object-fit:cover; border-radius: 10px; flex-shrink:0; }
+.photo-stage-note { flex:1; min-width:0; }
+.photo-stage-note textarea { width:100%; background: var(--surface-2); border:1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-family:'Inter',sans-serif; resize: vertical; min-height: 44px; line-height: 1.4; box-sizing: border-box; }
+.photo-stage-note textarea:focus { outline:none; border-color: var(--accent); }
+.photo-stage-controls { display:flex; gap: 8px; }
+.photo-stage-controls button { flex:1; border-radius: 10px; padding: 11px; cursor:pointer; font-weight:700; font-size: 13px; border:none; }
+.photo-stage-controls .photo-confirm { background: var(--accent); color:#0d1a2e; }
+.photo-stage-controls .photo-cancel { background: var(--surface-2); color: var(--text-dim); border:1px solid var(--line); flex:0.5; }
 
 .analysis-loading { display:flex; align-items:center; gap:10px; padding: 12px; color: var(--text-dim); font-size: 13px; }
 
@@ -633,6 +643,19 @@ html, body { margin:0; padding:0; background:#16171a; min-height:100vh; }
         <span class="upload-icon">📷</span>
         <span class="upload-hint">Нажми и выбери фото блюда</span>
       </label>
+
+      <div class="photo-stage hidden" id="photoStage">
+        <div class="photo-stage-preview">
+          <img id="photoStagePreview" alt="">
+          <div class="photo-stage-note">
+            <textarea id="photoNoteInput" placeholder="Уточни порцию (необязательно): «съел половину», «40г», «без гарнира»..."></textarea>
+          </div>
+        </div>
+        <div class="photo-stage-controls">
+          <button class="photo-cancel" id="photoCancelBtn">Отмена</button>
+          <button class="photo-confirm" id="photoConfirmBtn">Оценить и добавить</button>
+        </div>
+      </div>
 
       <div id="loadingBox" class="analysis-loading hidden">
         <span class="wk-spinner" style="width:14px;height:14px;"></span> Разбираю блюдо...
@@ -1913,18 +1936,62 @@ ${promptExtra}
     if (result.comment) $('verdictBox').innerHTML = verdictHtml(entry);
   }
 
+  // Picking a photo doesn't analyze it right away — it stages a preview plus
+  // an optional note (portion eaten, what was left out) so that, e.g., a
+  // photo of a full plate can be logged as "40г" instead of the whole thing.
+  let pendingPhoto = null; // { base64, mimeType }
+
+  // Clears the staged photo/note without touching uploadZone's own
+  // visibility — callers decide whether the drop zone should reappear.
+  function clearPendingPhoto() {
+    pendingPhoto = null;
+    $('photoStage').classList.add('hidden');
+    $('photoStagePreview').src = '';
+    $('photoNoteInput').value = '';
+  }
+
   $('photoInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    try {
+      const base64 = await fileToBase64(file);
+      pendingPhoto = { base64, mimeType: file.type || 'image/jpeg' };
+      $('photoStagePreview').src = 'data:' + pendingPhoto.mimeType + ';base64,' + base64;
+      $('uploadZone').classList.add('hidden');
+      $('photoStage').classList.remove('hidden');
+      $('photoNoteInput').focus();
+    } catch (err) {
+      console.error(err);
+      $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">Не удалось прочитать фото — попробуй ещё раз.</div></div>`;
+    } finally {
+      e.target.value = '';
+    }
+  });
+
+  $('photoCancelBtn').addEventListener('click', () => {
+    clearPendingPhoto();
+    $('uploadZone').classList.remove('hidden');
+  });
+
+  $('photoConfirmBtn').addEventListener('click', async () => {
+    if (!pendingPhoto) return;
+    const note = $('photoNoteInput').value.trim();
     $('loadingBox').classList.remove('hidden');
     $('verdictBox').innerHTML = '';
     try {
-      const base64 = await fileToBase64(file);
+      let promptExtra = 'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ.';
+      if (note) {
+        promptExtra += ` ВАЖНО: клиент съел не всё, что видно на фото, а уточнил порцию так: "${note}". Считай калорийность и БЖУ именно по этому уточнению (это может быть вес в граммах, доля порции или что было убрано), а не по всему, что видно на фото.`;
+      } else {
+        promptExtra += ' Оцени калорийность и БЖУ на ту порцию, которая видна на фото целиком.';
+      }
       const result = await analyzeFoodWithRetry(
-        'Посмотри на фото еды и оцени блюдо и его примерную калорийность и БЖУ на порцию, которую видишь.',
-        { media_type: file.type || 'image/jpeg', data: base64 }
+        promptExtra,
+        { media_type: pendingPhoto.mimeType, data: pendingPhoto.base64 }
       );
       await addFoodEntry(result);
+      clearPendingPhoto();
+      $('uploadZone').classList.remove('hidden');
     } catch (err) {
       console.error(err);
       const noKey = err.message === 'NO_API_KEY';
@@ -1932,15 +1999,21 @@ ${promptExtra}
       $('verdictBox').innerHTML = `<div class="verdict-box"><div class="verdict-comment bad">${escapeHtml(reason)}</div></div>`;
     } finally {
       $('loadingBox').classList.add('hidden');
-      e.target.value = '';
     }
   });
 
   $('photoToggleBtn').addEventListener('click', () => {
     const zone = $('uploadZone');
-    const isHidden = zone.classList.contains('hidden');
-    zone.classList.toggle('hidden');
-    $('photoToggleBtn').textContent = isHidden ? '📷 Скрыть фото' : '📷 Или добавь по фото';
+    const stage = $('photoStage');
+    const isCurrentlyOpen = !zone.classList.contains('hidden') || !stage.classList.contains('hidden');
+    if (isCurrentlyOpen) {
+      zone.classList.add('hidden');
+      clearPendingPhoto();
+      $('photoToggleBtn').textContent = '📷 Или добавь по фото';
+    } else {
+      zone.classList.remove('hidden');
+      $('photoToggleBtn').textContent = '📷 Скрыть фото';
+    }
   });
 
   $('textFoodBtn').addEventListener('click', async () => {
